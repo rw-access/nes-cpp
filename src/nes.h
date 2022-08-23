@@ -1,5 +1,6 @@
 #pragma once
 #include <array>
+#include <bitset>
 #include <cinttypes>
 #include <cstddef>
 #include <vector>
@@ -19,6 +20,7 @@ public:
 
     uint8_t Read(Address address) const;
     uint16_t Read16(Address lowAddress) const;
+    void Write(uint16_t address, uint8_t data);
 };
 } // namespace mem
 
@@ -64,20 +66,37 @@ struct DecodedInstruction {
 class CPU {
 private:
     mem::Memory &memory;
-    uint8_t regA, regX, regY, regS, regSP;
+    uint8_t regA, regX, regY, regSP;
     mem::Address pc;
+    std::bitset<8> status;
+
+
+    // TODO: consider templating by addressing mode. it lets the compiler inline branches base on mode.
+    //  but, it could lead to bloat and # modes jump tables of # opcodes (975 cases, instead of 256).
+    //  instead, it would be better to make an opcode-based jump table of 256 entries
+    uint8_t dispatch(const DecodedInstruction &decodedInstruction, mem::Address addr);
+
+    inline void setNZ(uint8_t data);
+    inline void setCNZ(uint16_t data);
+
+    // one templated forward declaration for all opcodes
+    template<Opcode>
+    inline uint8_t op(AddressingMode mode, mem::Address addr);
+
+    // general purpose branch instruction
+    inline uint8_t BXX(uint8_t flag, bool isSet, mem::Address addr);
+
+    inline void push(uint8_t data);
+    inline void push16(uint16_t data);
+
+    inline uint8_t pop();
+    inline uint16_t pop16();
 
 public:
     CPU(mem::Memory &memory);
 
     // Execute a single instruction and return the number of cycles it took
     uint8_t step();
-
-    uint8_t dispatch(const DecodedInstruction &decodedInstruction, mem::Address addr);
-
-    // one templated forward declaration for all opcodes
-    template<Opcode>
-    uint8_t op(AddressingMode mode, mem::Address addr);
 };
 } // namespace cpu
 } // namespace nes
