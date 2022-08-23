@@ -8,8 +8,9 @@ enum Flags : uint8_t {
     I = 2, // Interrupt Disable   Not affected
     D = 3, // Decimal Mode Flag   Not affected
     B = 4, // Break Command       Not affected
-    V = 5, // Overflow Flag       Set if sign bit is incorrect
-    N = 6, // Negative Flag       Set if bit 7 set
+    U = 5, // Unused flag
+    V = 6, // Overflow Flag       Set if sign bit is incorrect
+    N = 7, // Negative Flag       Set if bit 7 set
 };
 
 // clang-format off
@@ -273,15 +274,6 @@ static const DecodedInstruction decodeTable[256]{
 };
 // clang-format on
 
-CPU::CPU(mem::Memory &m) :
-    memory(m),
-    pc(0),
-    regA(0),
-    regX(0),
-    regY(0),
-    status(0) {
-}
-
 static bool crossesPageBoundary(uint16_t addrA, uint16_t addrB) {
     return (addrA & 0xff00) != (addrB & 0xff00);
 }
@@ -342,7 +334,8 @@ uint8_t CPU::step() {
                 this->pc++;
                 numCycles++;
 
-                if (offset & 0x80) address = this->pc - (uint16_t) (0x100 - offset);
+                if (offset & 0x80)
+                    address = this->pc - (uint16_t) (0x100 - offset);
                 else
                     address = this->pc + (uint16_t) offset;
             }
@@ -370,7 +363,15 @@ uint8_t CPU::step() {
 
     // every instruction should be at least two cycles
     numCycles += numCycles < 2;
+    this->cycle += numCycles;
     return numCycles;
+}
+
+std::pair<uint8_t, std::string> CPU::debugStep() {
+    auto numCycles = this->step();
+
+    auto instruction = this->memory.Read(this->pc);
+    auto decodedInstruction = decodeTable[instruction];
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ADC
@@ -684,7 +685,7 @@ uint8_t CPU::op<Opcode::ISC>(AddressingMode mode, mem::Address addr) {
 template<>
 uint8_t CPU::op<Opcode::JMP>(AddressingMode, mem::Address addr) {
     this->pc = addr;
-    return 0;
+    return 1;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#JSR
@@ -870,6 +871,7 @@ template<>
 uint8_t CPU::op<Opcode::RTS>(AddressingMode, mem::Address) {
     this->pc = this->pop16();
     this->pc++;
+    return 5;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SAX
@@ -1025,7 +1027,6 @@ template<>
 uint8_t CPU::op<Opcode::XAA>(AddressingMode mode, mem::Address addr) {
     return 0;
 }
-
 
 uint8_t CPU::dispatch(const DecodedInstruction &decodedInstruction, mem::Address addr) {
     switch (decodedInstruction.opcode) {
@@ -1214,5 +1215,30 @@ uint16_t CPU::pop16() {
     uint16_t lo = this->pop();
     uint16_t hi = this->pop();
     return hi << 8 | lo;
+}
+
+
+CPU::CPU(mem::Memory &m) :
+    memory(m),
+    pc(0),
+    regA(0),
+    regX(0),
+    regY(0),
+    regSP(0xfd),
+    status(0x0),
+    cycle(0) {
+    // https://www.nesdev.org/wiki/CPU_ALL#At_power-up
+
+    this->status[Flags::U] = true;
+    this->status[Flags::I] = true;
+    this->status[Flags::B] = true;
+
+    this->pc = this->memory.Read16(0xfffc);
+
+    this->memory.Write(0x4017, 0x40); // disable frame IRQ
+    this->memory.Write(0x4015, 0x40); // disable all channels
+
+    for (mem::Address addr = 0x4000; addr <= 0x4013; addr++)
+        this->memory.Write(addr, 0x0);
 }
 } // namespace nes::cpu

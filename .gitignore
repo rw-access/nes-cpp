@@ -36,3 +36,5 @@ cmake-build-debug
 
 # IDE
 .idea
+
+/tests/roms

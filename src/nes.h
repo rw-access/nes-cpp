@@ -17,6 +17,7 @@ private:
 
 public:
     Memory();
+    Memory(std::vector<uint8_t> &&rawMem);
 
     uint8_t Read(Address address) const;
     uint16_t Read16(Address lowAddress) const;
@@ -69,7 +70,7 @@ private:
     uint8_t regA, regX, regY, regSP;
     mem::Address pc;
     std::bitset<8> status;
-
+    uint64_t cycle;
 
     // TODO: consider templating by addressing mode. it lets the compiler inline branches base on mode.
     //  but, it could lead to bloat and # modes jump tables of # opcodes (975 cases, instead of 256).
@@ -97,6 +98,9 @@ public:
 
     // Execute a single instruction and return the number of cycles it took
     uint8_t step();
+
+    // Single step
+    std::pair<uint8_t, std::string> debugStep();
 };
 } // namespace cpu
 } // namespace nes

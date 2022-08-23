@@ -6,14 +6,20 @@ Memory::Memory() :
     rawMemory() {
 }
 
+Memory::Memory(std::vector<uint8_t> &&rawMem) :
+    rawMemory(std::move(rawMem)) {
+}
+
 uint8_t Memory::Read(uint16_t address) const {
-    if (address < this->rawMemory.size()) return this->rawMemory[address];
+    if (address < this->rawMemory.size())
+        return this->rawMemory[address];
 
     return 0xff;
 }
 
 void Memory::Write(uint16_t address, uint8_t data) {
-    if (address < this->rawMemory.size()) this->rawMemory[address] = data;
+    if (address < this->rawMemory.size())
+        this->rawMemory[address] = data;
 }
 
 uint16_t Memory::Read16(uint16_t lowAddress) const {
