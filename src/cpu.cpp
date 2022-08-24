@@ -366,13 +366,13 @@ uint8_t CPU::step() {
     this->cycle += numCycles;
     return numCycles;
 }
-
-std::pair<uint8_t, std::string> CPU::debugStep() {
-    auto numCycles = this->step();
-
-    auto instruction = this->memory.Read(this->pc);
-    auto decodedInstruction = decodeTable[instruction];
-}
+//
+//std::pair<uint8_t, std::string> CPU::debugStep() {
+//    auto numCycles = this->step();
+//
+//    auto instruction = this->memory.Read(this->pc);
+//    auto decodedInstruction = decodeTable[instruction];
+//}
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ADC
 template<>

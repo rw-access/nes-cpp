@@ -3,7 +3,7 @@ project(nes)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(nes src/main.cpp src/cpu.cpp src/nes.h src/mem.cpp tests/cpu.cpp)
+add_executable(nes src/main.cpp src/cpu.cpp src/nes.h src/mem.cpp tests/cpu.cpp src/rom.cpp)
 
 
 include(FetchContent)
@@ -21,7 +21,7 @@ add_executable(
         src/cpu.cpp
         src/mem.cpp
         tests/cpu.cpp
-)
+        src/rom.cpp)
 
 target_link_libraries(
         nes_test
