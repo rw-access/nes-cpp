@@ -1,6 +1,6 @@
 #include "nes.h"
 
-namespace nes::mem {
+namespace nes {
 
 Memory::Memory(std::unique_ptr<Cartridge> &&cartridge) :
     ram{0},
@@ -52,4 +52,4 @@ uint16_t BaseMemory::Read16(uint16_t lowAddress) const {
 }
 
 
-} // namespace nes::mem
+} // namespace nes

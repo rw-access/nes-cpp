@@ -7,7 +7,6 @@
 
 
 namespace nes {
-namespace mem {
 
 typedef uint16_t Address;
 
@@ -45,9 +44,6 @@ public:
     uint8_t Read(Address address) const override;
     void Write(Address address, uint8_t data) override;
 };
-} // namespace mem
-
-namespace cpu {
 
 enum class AddressingMode : uint8_t {
     Implied,
@@ -88,26 +84,26 @@ struct DecodedInstruction {
 
 class CPU {
 private:
-    mem::Memory &memory;
+    Memory &memory;
     uint8_t regA, regX, regY, regSP;
-    mem::Address pc;
+    Address pc;
     std::bitset<8> status;
     uint64_t cycle;
 
     // TODO: consider templating by addressing mode. it lets the compiler inline branches base on mode.
     //  but, it could lead to bloat and # modes jump tables of # opcodes (975 cases, instead of 256).
     //  instead, it would be better to make an opcode-based jump table of 256 entries
-    uint8_t dispatch(const DecodedInstruction &decodedInstruction, mem::Address addr);
+    uint8_t dispatch(const DecodedInstruction &decodedInstruction, Address addr);
 
     inline void setNZ(uint8_t data);
     inline void setCNZ(uint16_t data);
 
     // one templated forward declaration for all opcodes
     template<Opcode>
-    inline uint8_t op(AddressingMode mode, mem::Address addr);
+    inline uint8_t op(AddressingMode mode, Address addr);
 
     // general purpose branch instruction
-    inline uint8_t BXX(uint8_t flag, bool isSet, mem::Address addr);
+    inline uint8_t BXX(uint8_t flag, bool isSet, Address addr);
 
     inline void push(uint8_t data);
     inline void push16(uint16_t data);
@@ -116,7 +112,7 @@ private:
     inline uint16_t pop16();
 
 public:
-    CPU(mem::Memory &memory);
+    CPU(Memory &memory);
 
     // Execute a single instruction and return the number of cycles it took
     uint8_t step();
@@ -124,5 +120,4 @@ public:
     // Single step
     std::pair<uint8_t, std::string> debugStep();
 };
-} // namespace cpu
 } // namespace nes

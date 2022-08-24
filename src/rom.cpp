@@ -102,7 +102,7 @@ static_assert(sizeof(inesHeader) == 16, "unexpected inesHeader size");
 static_assert(sizeof(nes2Header) == 16, "unexpected nes2Header size");
 static_assert(sizeof(anyHeader) == 16, "unexpected anyHeader size");
 
-class PlainCartridge : public mem::Cartridge {
+class PlainCartridge : public Cartridge {
 private:
     std::vector<uint8_t> prgRom;
     std::vector<uint8_t> chrRom;
@@ -118,7 +118,7 @@ public:
         //        prgRam(std::move(prgRam))
         {};
 
-    uint8_t Read(mem::Address addr) const {
+    uint8_t Read(Address addr) const {
         if (addr < 0x6000)
             return 0;
 
@@ -132,10 +132,10 @@ public:
         return 0;
     };
 
-    void Write(mem::Address addr, uint8_t data) const;
+    void Write(Address addr, uint8_t data) const;
 };
 
-std::unique_ptr<mem::Cartridge> loadAndValidateROM(const std::string &path) {
+std::unique_ptr<Cartridge> loadAndValidateROM(const std::string &path) {
     std::ifstream romFile(path, std::ios_base::binary | std::ios_base::in);
     anyHeader hdr;
 
