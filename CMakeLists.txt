@@ -3,7 +3,7 @@ project(nes)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(nes src/main.cpp src/cpu.cpp src/nes.h src/mem.cpp tests/cpu.cpp src/rom.cpp)
+add_executable(nes src/main.cpp src/cpu.cpp src/nes.h src/memory.cpp tests/cpu.cpp src/rom.cpp src/cpu.h)
 
 
 include(FetchContent)
@@ -19,7 +19,7 @@ add_executable(
         nes_test
         src/nes.h
         src/cpu.cpp
-        src/mem.cpp
+        src/memory.cpp
         tests/cpu.cpp
         src/rom.cpp)
 

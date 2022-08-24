@@ -1,4 +1,4 @@
-#include "nes.h"
+#include "memory.h"
 #include <errno.h>
 #include <fstream>
 #include <iostream>

@@ -1,17 +1,7 @@
-#include "nes.h"
+#include "cpu.h"
 
 namespace nes {
 
-enum Flags : uint8_t {
-    C = 0, // Carry Flag          Set if overflow in bit 7
-    Z = 1, // Zero Flag           Set if A = 0
-    I = 2, // Interrupt Disable   Not affected
-    D = 3, // Decimal Mode Flag   Not affected
-    B = 4, // Break Command       Not affected
-    U = 5, // Unused flag
-    V = 6, // Overflow Flag       Set if sign bit is incorrect
-    N = 7, // Negative Flag       Set if bit 7 set
-};
 
 // clang-format off
 static const DecodedInstruction decodeTable[256]{
@@ -274,8 +264,8 @@ static const DecodedInstruction decodeTable[256]{
 };
 // clang-format on
 
-static bool crossesPageBoundary(uint16_t addrA, uint16_t addrB) {
-    return (addrA & 0xff00) != (addrB & 0xff00);
+static bool crossesPageBoundary(Address a, Address b) {
+    return (a & 0xff00) != (b & 0xff00);
 }
 
 
@@ -303,17 +293,17 @@ uint8_t CPU::step() {
             numCycles += 0; // address already known
             break;
         case AddressingMode::AbsoluteIndexedX:
-            address = this->memory.Read16(this->pc) + (uint16_t) this->regX;
+            address = this->memory.Read16(this->pc) + Address(this->regX);
             this->pc += 2;
             numCycles += 3; // read + read + add
             break;
         case AddressingMode::AbsoluteIndexedY:
-            address = this->memory.Read16(this->pc) + (uint16_t) this->regY;
+            address = this->memory.Read16(this->pc) + Address(this->regY);
             this->pc += 2;
             numCycles += 3; // read + read + add
             break;
         case AddressingMode::IndexedIndirect:
-            address = (uint16_t) this->memory.Read(this->pc) + (uint16_t) this->regX;
+            address = Address(this->memory.Read(this->pc)) + Address(this->regX);
             this->pc += 2;
             numCycles += 4; // read + add
             break;
@@ -323,7 +313,7 @@ uint8_t CPU::step() {
             numCycles += 2;
             break;
         case AddressingMode::IndirectIndexed:
-            address = this->memory.Read16(this->memory.Read(this->pc)) + (uint16_t) this->regY;
+            address = this->memory.Read16(this->memory.Read(this->pc)) + Address(this->regY);
             this->pc += 2;
             numCycles += 3; // read + read + read + add
             break;
@@ -335,23 +325,23 @@ uint8_t CPU::step() {
                 numCycles++;
 
                 if (offset & 0x80)
-                    address = this->pc - (uint16_t) (0x100 - offset);
+                    address = this->pc - Address(0x100 - offset);
                 else
-                    address = this->pc + (uint16_t) offset;
+                    address = this->pc + Address(offset);
             }
             break;
         case AddressingMode::ZeroPage:
-            address = (uint16_t) this->memory.Read(this->pc);
+            address = this->memory.Read(this->pc);
             this->pc++;
             numCycles++;
             break;
         case AddressingMode::ZeroPageIndexedX:
-            address = (uint16_t) this->regX;
+            address = this->regX;
             numCycles++;
             this->pc++;
             break;
         case AddressingMode::ZeroPageIndexedY:
-            address = (uint16_t) this->regY;
+            address = this->regY;
             numCycles++;
             this->pc++;
             break;
@@ -377,15 +367,15 @@ uint8_t CPU::step() {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ADC
 template<>
 uint8_t CPU::op<Opcode::ADC>(AddressingMode mode, Address addr) {
-    auto a = uint16_t(this->regA);
-    auto b = uint16_t(this->memory.Read(addr));
+    auto a = WordWithCarry(this->regA);
+    auto b = WordWithCarry(this->memory.Read(addr));
     auto result = a + b;
-    this->regA = uint8_t(result);
+    this->regA = Word(result);
 
     this->setCNZ(result);
 
     // signs are the same before, but the sign changed after
-    this->status[Flags::V] = (a & 0x80) == (b & 0x80) && (a & 0x80) != (result & 0x80);
+    this->status[Flag::V] = (a & 0x80) == (b & 0x80) && (a & 0x80) != (result & 0x80);
 
     // read (no ALU hit apparently)
     return 1;
@@ -427,19 +417,19 @@ uint8_t CPU::op<Opcode::ARR>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ASL
 template<>
 uint8_t CPU::op<Opcode::ASL>(AddressingMode mode, Address addr) {
-    uint16_t resultWide = 0;
+    WordWithCarry resultWide = 0;
     uint8_t numCycles = 2;
 
     if (mode == AddressingMode::Accumulator) {
-        resultWide = uint16_t(this->regA) << 1;
-        this->regA = uint8_t(resultWide);
+        resultWide = WordWithCarry(this->regA) << 1;
+        this->regA = Word(resultWide);
     } else {
-        resultWide = uint16_t(this->memory.Read(addr));
-        this->regA = uint8_t(resultWide);
+        resultWide = WordWithCarry(this->memory.Read(addr));
+        this->regA = Word(resultWide);
         numCycles += 2;
     }
 
-    this->setNZ(uint8_t(resultWide));
+    this->setNZ(Word(resultWide));
     return numCycles;
 }
 
@@ -450,7 +440,7 @@ uint8_t CPU::op<Opcode::AXS>(AddressingMode mode, Address addr) {
 }
 
 
-uint8_t CPU::BXX(uint8_t flag, bool isSet, Address addr) {
+uint8_t CPU::BXX(Flag flag, bool isSet, Address addr) {
     uint8_t numCycles = 0;
 
     if (this->status[flag] == isSet) {
@@ -464,28 +454,28 @@ uint8_t CPU::BXX(uint8_t flag, bool isSet, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BCC
 template<>
 uint8_t CPU::op<Opcode::BCC>(AddressingMode, Address addr) {
-    return this->BXX(Flags::C, false, addr);
+    return this->BXX(Flag::C, false, addr);
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BCS
 template<>
 uint8_t CPU::op<Opcode::BCS>(AddressingMode, Address addr) {
-    return this->BXX(Flags::C, true, addr);
+    return this->BXX(Flag::C, true, addr);
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BEQ
 template<>
 uint8_t CPU::op<Opcode::BEQ>(AddressingMode, Address addr) {
-    return this->BXX(Flags::Z, true, addr);
+    return this->BXX(Flag::Z, true, addr);
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BIT
 template<>
 uint8_t CPU::op<Opcode::BIT>(AddressingMode, Address addr) {
     auto result = this->regA & this->memory.Read(addr);
-    this->status[Flags::Z] = (result == 0);
-    this->status[Flags::N] = (result & 0x80) != 0;
-    this->status[Flags::V] = (result & 0x40) != 0;
+    this->status[Flag::Z] = (result == 0);
+    this->status[Flag::N] = (result & 0x80) != 0;
+    this->status[Flag::V] = (result & 0x40) != 0;
     // read + ALU
     return 2;
 }
@@ -493,19 +483,19 @@ uint8_t CPU::op<Opcode::BIT>(AddressingMode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BMI
 template<>
 uint8_t CPU::op<Opcode::BMI>(AddressingMode, Address addr) {
-    return this->BXX(Flags::N, true, addr);
+    return this->BXX(Flag::N, true, addr);
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BNE
 template<>
 uint8_t CPU::op<Opcode::BNE>(AddressingMode, Address addr) {
-    return this->BXX(Flags::Z, false, addr);
+    return this->BXX(Flag::Z, false, addr);
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BPL
 template<>
 uint8_t CPU::op<Opcode::BPL>(AddressingMode, Address addr) {
-    return this->BXX(Flags::N, false, addr);
+    return this->BXX(Flag::N, false, addr);
 }
 
 template<>
@@ -521,10 +511,10 @@ uint8_t CPU::op<Opcode::BRK>(AddressingMode, Address) {
     // 6   $FFFE   R  fetch PCL
     // 7   $FFFF   R  fetch PCH
 
-    this->status[Flags::B] = true;
+    this->status[Flag::B] = true;
 
-    this->push16(this->pc);
-    this->push(uint8_t(this->status.to_ulong()));
+    this->pushAddress(this->pc);
+    this->push(Word(this->status.to_ulong()));
 
     this->memory.Read16(0xfffe);
 
@@ -534,40 +524,40 @@ uint8_t CPU::op<Opcode::BRK>(AddressingMode, Address) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BVC
 template<>
 uint8_t CPU::op<Opcode::BVC>(AddressingMode mode, Address addr) {
-    return this->BXX(Flags::V, false, addr);
+    return this->BXX(Flag::V, false, addr);
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BVS
 template<>
 uint8_t CPU::op<Opcode::BVS>(AddressingMode mode, Address addr) {
-    return this->BXX(Flags::V, true, addr);
+    return this->BXX(Flag::V, true, addr);
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#CLC
 template<>
 uint8_t CPU::op<Opcode::CLC>(AddressingMode mode, Address addr) {
-    this->status[Flags::C] = false;
+    this->status[Flag::C] = false;
     return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#CLD
 template<>
 uint8_t CPU::op<Opcode::CLD>(AddressingMode mode, Address addr) {
-    this->status[Flags::D] = false;
+    this->status[Flag::D] = false;
     return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#CLI
 template<>
 uint8_t CPU::op<Opcode::CLI>(AddressingMode mode, Address addr) {
-    this->status[Flags::I] = false;
+    this->status[Flag::I] = false;
     return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#CLV
 template<>
 uint8_t CPU::op<Opcode::CLV>(AddressingMode mode, Address addr) {
-    this->status[Flags::V] = false;
+    this->status[Flag::V] = false;
     return 0;
 }
 
@@ -578,7 +568,7 @@ uint8_t CPU::op<Opcode::CMP>(AddressingMode mode, Address addr) {
     auto m = this->memory.Read(addr);
     auto data = a - m;
     this->setNZ(data);
-    this->status[Flags::C] = a > m;
+    this->status[Flag::C] = a > m;
     return 1;
 }
 
@@ -588,7 +578,7 @@ uint8_t CPU::op<Opcode::CPX>(AddressingMode mode, Address addr) {
     auto x = this->regX;
     auto m = this->memory.Read(addr);
     this->setNZ(x - m);
-    this->status[Flags::C] = x >= m;
+    this->status[Flag::C] = x >= m;
     // read
     return 1;
 }
@@ -600,7 +590,7 @@ uint8_t CPU::op<Opcode::CPY>(AddressingMode mode, Address addr) {
     auto m = this->memory.Read(addr);
     auto data = y - m;
     this->setNZ(data);
-    this->status[Flags::C] = y > m;
+    this->status[Flag::C] = y > m;
     // read
     return 1;
 }
@@ -691,7 +681,7 @@ uint8_t CPU::op<Opcode::JMP>(AddressingMode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#JSR
 template<>
 uint8_t CPU::op<Opcode::JSR>(AddressingMode, Address addr) {
-    this->push16(this->pc);
+    this->pushAddress(this->pc);
     this->pc = addr;
     return 3;
 }
@@ -735,17 +725,17 @@ uint8_t CPU::op<Opcode::LDY>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#LSR
 template<>
 uint8_t CPU::op<Opcode::LSR>(AddressingMode mode, Address addr) {
-    uint16_t wideData;
+    WordWithCarry wideData;
     uint8_t numCycles = 0;
 
     if (mode == AddressingMode::Accumulator) {
-        wideData = uint16_t(this->regA);
+        wideData = WordWithCarry(this->regA);
         wideData = wideData >> 1 | (wideData & 0x01) << 8;
-        this->regA = uint8_t(wideData);
+        this->regA = Word(wideData);
     } else {
-        wideData = uint16_t(this->memory.Read(addr));
+        wideData = WordWithCarry(this->memory.Read(addr));
         wideData = wideData >> 1 | (wideData & 0x01) << 8;
-        this->memory.Write(addr, uint8_t(wideData));
+        this->memory.Write(addr, Word(wideData));
         numCycles += 2;
     }
 
@@ -809,17 +799,17 @@ uint8_t CPU::op<Opcode::RLA>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ROL
 template<>
 uint8_t CPU::op<Opcode::ROL>(AddressingMode mode, Address addr) {
-    uint16_t wideData;
+    WordWithCarry wideData;
     uint8_t numCycles = 0;
 
     if (mode == AddressingMode::Accumulator) {
-        wideData = uint16_t(this->regA);
-        wideData = wideData << 1 | this->status[Flags::C];
+        wideData = WordWithCarry(this->regA);
+        wideData = wideData << 1 | this->status[Flag::C];
         this->regA = wideData;
     } else {
-        wideData = uint16_t(this->memory.Read(addr));
-        wideData = wideData << 1 | this->status[Flags::C];
-        this->memory.Write(addr, uint8_t(wideData));
+        wideData = WordWithCarry(this->memory.Read(addr));
+        wideData = wideData << 1 | this->status[Flag::C];
+        this->memory.Write(addr, Word(wideData));
         numCycles += 2;
     }
 
@@ -832,17 +822,17 @@ uint8_t CPU::op<Opcode::ROL>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ROR
 template<>
 uint8_t CPU::op<Opcode::ROR>(AddressingMode mode, Address addr) {
-    uint16_t wideData;
+    WordWithCarry wideData;
     uint8_t numCycles = 0;
 
     if (mode == AddressingMode::Accumulator) {
-        wideData = uint16_t(this->regA);
-        wideData = wideData >> 1 | (this->status[Flags::C] << 8);
+        wideData = WordWithCarry(this->regA);
+        wideData = wideData >> 1 | (this->status[Flag::C] << 8);
         this->regA = wideData;
     } else {
-        wideData = uint16_t(this->memory.Read(addr));
-        wideData = wideData >> 1 | (this->status[Flags::C] << 8);
-        this->memory.Write(addr, uint8_t(wideData));
+        wideData = WordWithCarry(this->memory.Read(addr));
+        wideData = wideData >> 1 | (this->status[Flag::C] << 8);
+        this->memory.Write(addr, Word(wideData));
         numCycles += 2;
     }
 
@@ -862,14 +852,14 @@ uint8_t CPU::op<Opcode::RRA>(AddressingMode mode, Address addr) {
 template<>
 uint8_t CPU::op<Opcode::RTI>(AddressingMode, Address) {
     this->status = this->pop();
-    this->pc = this->pop16();
+    this->pc = this->popAddress();
     return 5;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#RTS
 template<>
 uint8_t CPU::op<Opcode::RTS>(AddressingMode, Address) {
-    this->pc = this->pop16();
+    this->pc = this->popAddress();
     this->pc++;
     return 5;
 }
@@ -883,15 +873,15 @@ uint8_t CPU::op<Opcode::SAX>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SBC
 template<>
 uint8_t CPU::op<Opcode::SBC>(AddressingMode mode, Address addr) {
-    auto a = uint16_t(this->regA);
-    auto m = uint16_t(this->memory.Read(addr));
-    auto result = a - m - (1 - this->status[Flags::C]);
-    this->regA = uint8_t(result);
+    auto a = WordWithCarry(this->regA);
+    auto m = WordWithCarry(this->memory.Read(addr));
+    auto result = a - m - (1 - this->status[Flag::C]);
+    this->regA = Word(result);
 
     this->setCNZ(result);
 
     // signs are the same before, but the sign changed after
-    this->status[Flags::V] = (a & 0x80) == (m & 0x80) && (a & 0x80) != (result & 0x80);
+    this->status[Flag::V] = (a & 0x80) == (m & 0x80) && (a & 0x80) != (result & 0x80);
 
     // read (no ALU hit apparently)
     return 1;
@@ -900,21 +890,21 @@ uint8_t CPU::op<Opcode::SBC>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SEC
 template<>
 uint8_t CPU::op<Opcode::SEC>(AddressingMode mode, Address addr) {
-    this->status[Flags::C] = 1;
+    this->status[Flag::C] = 1;
     return 1;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SED
 template<>
 uint8_t CPU::op<Opcode::SED>(AddressingMode, Address) {
-    this->status[Flags::D] = 1;
+    this->status[Flag::D] = 1;
     return 1;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SEI
 template<>
 uint8_t CPU::op<Opcode::SEI>(AddressingMode, Address) {
-    this->status[Flags::I] = 1;
+    this->status[Flag::I] = 1;
     return 1;
 }
 
@@ -1183,37 +1173,37 @@ uint8_t CPU::dispatch(const DecodedInstruction &decodedInstruction, Address addr
     }
 }
 
-void CPU::setNZ(uint8_t data) {
-    this->status[Flags::N] = (data & 0x80) != 0;
-    this->status[Flags::Z] = data == 0;
+void CPU::setNZ(Word data) {
+    this->status[Flag::N] = (data & 0x80) != 0;
+    this->status[Flag::Z] = data == 0;
 }
 
-void CPU::setCNZ(uint16_t data) {
-    this->status[Flags::C] = (data & 0x0100) != 0;
-    this->status[Flags::N] = (data & 0x80) != 0;
-    this->status[Flags::Z] = data == 0;
+void CPU::setCNZ(WordWithCarry data) {
+    this->status[Flag::C] = (data & 0x0100) != 0;
+    this->status[Flag::N] = (data & 0x80) != 0;
+    this->status[Flag::Z] = data == 0;
 }
 
 
-void CPU::push(uint8_t data) {
-    this->memory.Write(0x100 + uint16_t(this->regSP), data);
+void CPU::push(Word data) {
+    this->memory.Write(0x100 + Address(this->regSP), data);
     this->regSP--;
 }
 
-void CPU::push16(uint16_t data) {
-    this->push(uint8_t(data >> 8));
-    this->push(uint8_t(data & 0x80));
+void CPU::pushAddress(Address addr) {
+    this->push(Word(addr >> 8));
+    this->push(Word(addr & 0x80));
 }
 
-uint8_t CPU::pop() {
+Word CPU::pop() {
     this->regSP++;
     auto data = this->memory.Read(0x100 + this->regSP);
     return data;
 }
 
-uint16_t CPU::pop16() {
-    uint16_t lo = this->pop();
-    uint16_t hi = this->pop();
+Address CPU::popAddress() {
+    Address lo = this->pop();
+    Address hi = this->pop();
     return hi << 8 | lo;
 }
 
@@ -1229,9 +1219,9 @@ CPU::CPU(Memory &m) :
     cycle(0) {
     // https://www.nesdev.org/wiki/CPU_ALL#At_power-up
 
-    this->status[Flags::U] = true;
-    this->status[Flags::I] = true;
-    this->status[Flags::B] = true;
+    this->status[Flag::U] = true;
+    this->status[Flag::I] = true;
+    this->status[Flag::B] = true;
 
     this->pc = this->memory.Read16(0xfffc);
 
