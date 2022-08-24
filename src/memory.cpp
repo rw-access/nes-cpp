@@ -2,53 +2,44 @@
 
 namespace nes {
 
-Memory::Memory(std::unique_ptr<Cartridge> &&cartridge) :
+Memory::Memory(std::unique_ptr<Mapper> &&mapper) :
     ram{0},
     ppuReg{0},
     apu{0},
-    cartridge(std::move(cartridge)){};
+    mapper(std::move(mapper)){};
 
-uint8_t Memory::Read(Address addr) const {
-    // https://www.nesdev.org/wiki/CPU_memory_map
+const Word *Memory::unmap(Address addr) const {
+
     if (addr < 0x2000)
-        return this->ram[addr % this->ram.size()];
+        return &this->ram[addr % this->ram.size()];
 
     if (addr < 0x4000)
-        return this->ppuReg[addr % this->ppuReg.size()];
+        return &this->ppuReg[addr % this->ppuReg.size()];
 
     if (addr < 0x4018)
-        return this->apu[addr - 0x4000];
+        return &this->apu[addr - 0x4000];
 
     if (addr < 0x401f)
         // only enabled for CPU test mode
+        return nullptr;
+
+    return this->mapper->unmap(addr);
+}
+
+Word Memory::Read(Address addr) const {
+    // https://www.nesdev.org/wiki/CPU_memory_map
+    auto unmappedAddr = this->unmap(addr);
+    if (unmappedAddr == nullptr)
         return 0;
 
-    return this->cartridge->Read(addr);
+    return *unmappedAddr;
 }
 
-void Memory::Write(Address addr, uint8_t data) {
+void Memory::Write(Address addr, Word data) {
     // https://www.nesdev.org/wiki/CPU_memory_map
-    if (addr < 0x2000)
-        this->ram[addr % this->ram.size()] = data;
-    else if (addr < 0x4000)
-        this->ppuReg[addr % this->ppuReg.size()] = data;
-    else if (addr < 0x4018)
-        this->apu[addr - 0x4000] = data;
-    else if (addr < 0x401f)
-        // only enabled for CPU test mode
-        return;
-    else
-        this->cartridge->Write(addr, data);
-}
-
-uint16_t BaseMemory::Read16(uint16_t lowAddress) const {
-    // there was a bug in the original if the high byte crosses a page boundary,
-    // and it instead will wrap around
-    auto highAddress = (lowAddress & 0xff00) | 0x00ff & (lowAddress + 1);
-    auto lowBits = this->Read(lowAddress);
-    auto highBits = this->Read(highAddress);
-
-    return highBits << 8 | lowBits;
+    auto unmappedAddr = const_cast<Word *>(this->unmap(addr));
+    if (unmappedAddr != nullptr)
+        *unmappedAddr = data;
 }
 
 

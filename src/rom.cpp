@@ -102,44 +102,20 @@ static_assert(sizeof(inesHeader) == 16, "unexpected inesHeader size");
 static_assert(sizeof(nes2Header) == 16, "unexpected nes2Header size");
 static_assert(sizeof(anyHeader) == 16, "unexpected anyHeader size");
 
-class PlainCartridge : public Cartridge {
-private:
-    std::vector<uint8_t> prgRom;
-    std::vector<uint8_t> chrRom;
-    // std::vector<uint8_t> instRom;
-    //    std::vector<uint8_t> prgRam;
-
-public:
-    PlainCartridge(std::vector<uint8_t> &&prgRom, std::vector<uint8_t> &&chrRom
-                   //                   std::vector<uint8_t> &&prgRam)
-                   ) :
-        prgRom(std::move(prgRom)),
-        chrRom(std::move(chrRom))
-        //        prgRam(std::move(prgRam))
-        {};
-
-    uint8_t Read(Address addr) const {
-        if (addr < 0x6000)
-            return 0;
-
-        if (addr < 0x8000)
-            // no prg RAM attached
-            return 0;
-
-        if (addr < 0xC000)
-            return 0;
-
-        return 0;
-    };
-
-    void Write(Address addr, uint8_t data) const;
-};
-
-std::unique_ptr<Cartridge> loadAndValidateROM(const std::string &path) {
+std::unique_ptr<Mapper> LoadROM(const std::string &path) {
     std::ifstream romFile(path, std::ios_base::binary | std::ios_base::in);
     anyHeader hdr;
 
+    if (!romFile.is_open()) {
+        throw std::runtime_error(std::string("failed to open: ") + path);
+    }
+
     // read directly into the inesHeader
+    char rawHeader[16];
+    romFile.read(&rawHeader[0], sizeof(hdr));
+    romFile.seekg(0);
+
+
     romFile.read(reinterpret_cast<char *>(&hdr), sizeof(hdr));
     if (hdr.ines.magic != expectedMagic)
         throw std::runtime_error("Not a valid NES file");
@@ -154,7 +130,7 @@ std::unique_ptr<Cartridge> loadAndValidateROM(const std::string &path) {
 
     // read PRG ROM
     std::vector<uint8_t> prgRom;
-    prgRom.resize(hdr.ines.prgRomSize * 16536);
+    prgRom.resize(hdr.ines.prgRomSize * 16384);
     romFile.read(reinterpret_cast<char *>(prgRom.data()), prgRom.size());
 
     // read CHR ROM
@@ -168,6 +144,9 @@ std::unique_ptr<Cartridge> loadAndValidateROM(const std::string &path) {
 
     // https://www.nesdev.org/wiki/CPU_memory_map
     // $4020-$FFFF      $BFE0   Cartridge space: PRG ROM, PRG RAM, and mapper registers (See Note)
-    return std::make_unique<PlainCartridge>(std::move(prgRom), std::move(chrROM));
+    auto cartridge = std::make_unique<Cartridge>();
+    cartridge->prgRom = std::move(prgRom);
+    cartridge->chrRom = std::move(chrROM);
+    return Mapper::Create(MapperType(hdr.ines.mapperHi << 4 | hdr.ines.mapperLo), std::move(cartridge));
 }
 } // namespace nes

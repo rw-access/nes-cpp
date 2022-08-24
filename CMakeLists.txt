@@ -3,7 +3,18 @@ project(nes)
 
 set(CMAKE_CXX_STANDARD 20)
 
-add_executable(nes src/main.cpp src/cpu.cpp src/nes.h src/memory.cpp tests/cpu.cpp src/rom.cpp src/cpu.h)
+add_executable(nes
+
+        src/cpu.cpp
+        src/cpu.h
+        src/main.cpp
+        src/mapper.cpp
+        src/mapper.h
+        src/memory.cpp
+        src/memory.h
+        src/nes.h
+        src/rom.cpp
+        src/rom.h)
 
 
 include(FetchContent)
@@ -17,11 +28,18 @@ FetchContent_MakeAvailable(googletest)
 enable_testing()
 add_executable(
         nes_test
-        src/nes.h
+
         src/cpu.cpp
+        src/cpu.h
+        src/mapper.cpp
+        src/mapper.h
         src/memory.cpp
-        tests/cpu.cpp
-        src/rom.cpp)
+        src/memory.h
+        src/nes.h
+        src/rom.cpp
+        src/rom.h
+
+        tests/cpu.cpp)
 
 target_link_libraries(
         nes_test

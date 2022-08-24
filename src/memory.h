@@ -1,42 +1,27 @@
 #pragma once
+
+#include "mapper.h"
 #include "nes.h"
 
 namespace nes {
 
 
-class BaseMemory {
-public:
-    uint16_t Read16(Address lowAddress) const;
-
-    virtual uint8_t Read(Address address) const;
-    virtual void Write(Address address, uint8_t data);
-};
-
-class Cartridge : public BaseMemory {
+class Memory final {
 private:
-    // std::vector<uint8_t> prgRom;
-    // std::vector<uint8_t> chrRom;
-    // std::vector<uint8_t> instRom;
-    // std::vector<uint8_t> prgRam;
+    std::array<Word, 0x800> ram;
+    std::array<Word, 0x008> ppuReg;
+    std::array<Word, 0x0018> apu;
+    std::array<Word, 0x008> io;
+    std::unique_ptr<Mapper> mapper;
 
-public:
-    virtual ~Cartridge() = 0;
-};
-
-class Memory final : public BaseMemory {
 private:
-    std::array<uint8_t, 0x800> ram;
-    std::array<uint8_t, 0x008> ppuReg;
-    std::array<uint8_t, 0x0018> apu;
-    std::array<uint8_t, 0x008> io;
-
-    std::unique_ptr<Cartridge> cartridge;
+    const Word *unmap(Address addr) const;
 
 public:
-    Memory(std::unique_ptr<Cartridge> &&cartridge);
+    Memory(std::unique_ptr<Mapper> &&mapper);
 
-    uint8_t Read(Address address) const override;
-    void Write(Address address, uint8_t data) override;
+    uint8_t Read(Address address) const;
+    void Write(Address address, uint8_t data);
 };
 
-}
+} // namespace nes

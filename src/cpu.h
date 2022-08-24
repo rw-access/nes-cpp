@@ -58,15 +58,14 @@ class CPU {
     using WordWithCarry = uint16_t;
 
 private:
-    Memory &memory;
+    std::unique_ptr<Memory> memory;
     Word regA, regX, regY, regSP;
     Address pc;
     Status status;
     uint64_t cycle;
 
-    // TODO: consider templating by addressing mode. it lets the compiler inline branches base on mode.
-    //  but, it could lead to bloat and # modes jump tables of # opcodes (975 cases, instead of 256).
-    //  instead, it would be better to make an opcode-based jump table of 256 entries
+    // TODO: consider make an opcode-based jump table of 256 entries for more specialized code,
+    //   that can optimize inlining of functions because the addressing node is known at compile time
     uint8_t dispatch(const DecodedInstruction &decodedInstruction, Address addr);
 
     inline void setNZ(Word data);
@@ -85,11 +84,18 @@ private:
     inline Word pop();
     inline Address popAddress();
 
+    Word read(Address addr) const;
+    Address readAddress(Address addr) const;
+
+    void write(Address addr, Word data);
+
 public:
-    CPU(Memory &memory);
+    CPU(std::unique_ptr<Memory> &&memory);
 
     // Execute a single instruction and return the number of cycles it took
     uint8_t step();
+
+    void PC(Address addr);
 };
 
 } // namespace nes
