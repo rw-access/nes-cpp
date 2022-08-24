@@ -1,6 +1,7 @@
 #pragma once
 #include "memory.h"
 #include "nes.h"
+#include "opcodes.def"
 
 namespace nes {
 
@@ -22,18 +23,15 @@ enum class AddressingMode : uint8_t {
 };
 
 enum class Opcode : uint8_t {
-    // clang-format off
-    ADC, AHX, ALR, ANC, AND, ARR, ASL, AXS,
-    BCC, BCS, BEQ, BIT, BMI, BNE, BPL, BRK,
-    BVC, BVS, CLC, CLD, CLI, CLV, CMP, CPX,
-    CPY, DCP, DEC, DEX, DEY, EOR, INC, INX,
-    INY, ISC, JMP, JSR, LAS, LAX, LDA, LDX,
-    LDY, LSR, NOP, ORA, PHA, PHP, PLA, PLP,
-    RLA, ROL, ROR, RRA, RTI, RTS, SAX, SBC,
-    SEC, SED, SEI, SHX, SHY, SLO, SRE, STA,
-    STP, STX, STY, TAS, TAX, TAY, TSX, TXA,
-    TXS, TYA, XAA,
-    // clang-format on
+#define OP_MACRO(op) op,
+    FOREACH_OPCODE(OP_MACRO)
+#undef OP_MACRO
+};
+
+static const char *OpcodeStrings[256]{
+#define OP_MACRO(op) #op,
+        FOREACH_OPCODE(OP_MACRO)
+#undef OP_MACRO
 };
 
 struct DecodedInstruction {
@@ -43,19 +41,21 @@ struct DecodedInstruction {
 
 
 enum Flag : uint8_t {
-    C = 0, // Carry Flag          Set if overflow in bit 7
-    Z = 1, // Zero Flag           Set if A = 0
-    I = 2, // Interrupt Disable   Not affected
-    D = 3, // Decimal Mode Flag   Not affected
-    B = 4, // Break Command       Not affected
+    C = 0, // Carry Flag
+    Z = 1, // Zero Flag
+    I = 2, // Interrupt Disable
+    D = 3, // Decimal Mode Flag
+    B = 4, // Break Command
     U = 5, // Unused flag
-    V = 6, // Overflow Flag       Set if sign bit is incorrect
-    N = 7, // Negative Flag       Set if bit 7 set
+    V = 6, // Overflow Flag
+    N = 7, // Negative Flag
 };
 
 class CPU {
     using Status = std::bitset<8>;
     using WordWithCarry = uint16_t;
+    using SignedWord = int8_t;
+    using SignedWordWithCarry = int16_t;
 
 private:
     std::unique_ptr<Memory> memory;
@@ -86,6 +86,7 @@ private:
 
     Word read(Address addr) const;
     Address readAddress(Address addr) const;
+    Address readAddressBug(Address addr) const;
 
     void write(Address addr, Word data);
 
@@ -94,6 +95,8 @@ public:
 
     // Execute a single instruction and return the number of cycles it took
     uint8_t step();
+
+    uint8_t debugStep();
 
     void PC(Address addr);
 };

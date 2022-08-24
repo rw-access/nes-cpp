@@ -1,7 +1,11 @@
 cmake_minimum_required(VERSION 3.23)
 project(nes)
 
-set(CMAKE_CXX_STANDARD 20)
+set(
+        CMAKE_CXX_STANDARD 20
+        CMAKE_CXX_STANDARD_REQUIRED ON
+        CMAKE_REQUIRED_FLAGS -std=c++20
+)
 
 add_executable(nes
 
@@ -26,6 +30,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 enable_testing()
+
 add_executable(
         nes_test
 

@@ -11,12 +11,8 @@ TEST(NESTest, NesTestRom) {
 
     cpu.PC(0xc000);
 
-    while (true) {
+    for (uint64_t i = 0; i < 8000; i++) {
         uint8_t numCycles = cpu.step();
-        std::cout << "Executed " << int(numCycles) << "cycles";
-
-        if (numCycles > 20) {
-            break;
-        }
+        (void) numCycles;
     }
 }
