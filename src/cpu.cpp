@@ -238,11 +238,11 @@ static const DecodedInstruction decodeTable[256]{
         {Opcode::CPX, AddressingMode::Immediate},
         {Opcode::SBC, AddressingMode::IndexedIndirect},
         {Opcode::NOP, AddressingMode::Immediate},
-        {Opcode::ISC, AddressingMode::IndexedIndirect},
+        {Opcode:: ISB, AddressingMode::IndexedIndirect},
         {Opcode::CPX, AddressingMode::ZeroPage},
         {Opcode::SBC, AddressingMode::ZeroPage},
         {Opcode::INC, AddressingMode::ZeroPage},
-        {Opcode::ISC, AddressingMode::ZeroPage},
+        {Opcode:: ISB, AddressingMode::ZeroPage},
         {Opcode::INX, AddressingMode::Implied},
         {Opcode::SBC, AddressingMode::Immediate},
         {Opcode::NOP, AddressingMode::Implied},
@@ -250,23 +250,23 @@ static const DecodedInstruction decodeTable[256]{
         {Opcode::CPX, AddressingMode::Absolute},
         {Opcode::SBC, AddressingMode::Absolute},
         {Opcode::INC, AddressingMode::Absolute},
-        {Opcode::ISC, AddressingMode::Absolute},
+        {Opcode:: ISB, AddressingMode::Absolute},
         {Opcode::BEQ, AddressingMode::Relative},
         {Opcode::SBC, AddressingMode::IndirectIndexed},
         {Opcode::STP, AddressingMode::Implied},
-        {Opcode::ISC, AddressingMode::IndirectIndexed},
+        {Opcode:: ISB, AddressingMode::IndirectIndexed},
         {Opcode::NOP, AddressingMode::ZeroPageIndexedX},
         {Opcode::SBC, AddressingMode::ZeroPageIndexedX},
         {Opcode::INC, AddressingMode::ZeroPageIndexedX},
-        {Opcode::ISC, AddressingMode::ZeroPageIndexedX},
+        {Opcode:: ISB, AddressingMode::ZeroPageIndexedX},
         {Opcode::SED, AddressingMode::Implied},
         {Opcode::SBC, AddressingMode::AbsoluteIndexedY},
         {Opcode::NOP, AddressingMode::Implied},
-        {Opcode::ISC, AddressingMode::AbsoluteIndexedY},
+        {Opcode:: ISB, AddressingMode::AbsoluteIndexedY},
         {Opcode::NOP, AddressingMode::AbsoluteIndexedX},
         {Opcode::SBC, AddressingMode::AbsoluteIndexedX},
         {Opcode::INC, AddressingMode::AbsoluteIndexedX},
-        {Opcode::ISC, AddressingMode::AbsoluteIndexedX},
+        {Opcode:: ISB, AddressingMode::AbsoluteIndexedX},
 };
 // clang-format on
 
@@ -729,12 +729,6 @@ uint8_t CPU::op<Opcode::CPY>(AddressingMode mode, Address addr) {
     return 1;
 }
 
-// https://www.nesdev.org/obelisk-6502-guide/reference.html#DCP
-template<>
-uint8_t CPU::op<Opcode::DCP>(AddressingMode mode, Address addr) {
-    return 0;
-}
-
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#DEC
 template<>
 uint8_t CPU::op<Opcode::DEC>(AddressingMode, Address addr) {
@@ -743,6 +737,14 @@ uint8_t CPU::op<Opcode::DEC>(AddressingMode, Address addr) {
     this->setNZ(m);
     // read + alu + write
     return 3;
+}
+
+// https://www.nesdev.org/obelisk-6502-guide/reference.html#DCP
+template<>
+uint8_t CPU::op<Opcode::DCP>(AddressingMode mode, Address addr) {
+    uint8_t numCycles = this->op<Opcode::DEC>(mode, addr);
+    numCycles += this->op<Opcode::CMP>(mode, addr);
+    return numCycles;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#DEX
@@ -799,11 +801,6 @@ uint8_t CPU::op<Opcode::INY>(AddressingMode, Address) {
     return 1;
 }
 
-// https://www.nesdev.org/obelisk-6502-guide/reference.html#ISC
-template<>
-uint8_t CPU::op<Opcode::ISC>(AddressingMode mode, Address addr) {
-    return 0;
-}
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#JMP
 template<>
@@ -936,12 +933,6 @@ uint8_t CPU::op<Opcode::PLP>(AddressingMode, Address) {
     return 3;
 }
 
-// https://www.nesdev.org/obelisk-6502-guide/reference.html#RLA
-template<>
-uint8_t CPU::op<Opcode::RLA>(AddressingMode mode, Address addr) {
-    return 0;
-}
-
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ROL
 template<>
 uint8_t CPU::op<Opcode::ROL>(AddressingMode mode, Address addr) {
@@ -998,7 +989,9 @@ uint8_t CPU::op<Opcode::ROR>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#RRA
 template<>
 uint8_t CPU::op<Opcode::RRA>(AddressingMode mode, Address addr) {
-    return 0;
+    auto numCycles = this->op<Opcode::ROR>(mode, addr);
+    numCycles += this->op<Opcode::ADC>(mode, addr);
+    return numCycles;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#RTI
@@ -1026,7 +1019,8 @@ uint8_t CPU::op<Opcode::RTS>(AddressingMode, Address) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SAX
 template<>
 uint8_t CPU::op<Opcode::SAX>(AddressingMode mode, Address addr) {
-    return 0;
+    this->write(addr, this->regA & this->regX);
+    return 1;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SBC
@@ -1083,13 +1077,17 @@ uint8_t CPU::op<Opcode::SHY>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SLO
 template<>
 uint8_t CPU::op<Opcode::SLO>(AddressingMode mode, Address addr) {
-    return 0;
+    auto numCycles = this->op<Opcode::ASL>(mode, addr);
+    numCycles += this->op<Opcode::ORA>(mode, addr);
+    return numCycles;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SRE
 template<>
 uint8_t CPU::op<Opcode::SRE>(AddressingMode mode, Address addr) {
-    return 0;
+    auto numCycles = this->op<Opcode::LSR>(mode, addr);
+    numCycles += this->op<Opcode::EOR>(mode, addr);
+    return numCycles;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#STA
@@ -1178,6 +1176,24 @@ uint8_t CPU::op<Opcode::XAA>(AddressingMode, Address) {
     return 0;
 }
 
+
+// https://www.nesdev.org/obelisk-6502-guide/reference.html# ISB
+template<>
+uint8_t CPU::op<Opcode::ISB>(AddressingMode mode, Address addr) {
+    uint8_t numCycles = this->op<Opcode::INC>(mode, addr);
+    numCycles += this->op<Opcode::SBC>(mode, addr);
+    return numCycles;
+}
+
+// https://www.nesdev.org/obelisk-6502-guide/reference.html#RLA
+template<>
+uint8_t CPU::op<Opcode::RLA>(AddressingMode mode, Address addr) {
+    auto numCycles = this->op<Opcode::ROL>(mode, addr);
+    numCycles += this->op<Opcode::AND>(mode, addr);
+    return numCycles;
+}
+
+
 uint8_t CPU::dispatch(const DecodedInstruction &decodedInstruction, Address addr) {
     switch (decodedInstruction.opcode) {
         case Opcode::ADC:
@@ -1246,8 +1262,8 @@ uint8_t CPU::dispatch(const DecodedInstruction &decodedInstruction, Address addr
             return this->op<Opcode::INX>(decodedInstruction.addressingMode, addr);
         case Opcode::INY:
             return this->op<Opcode::INY>(decodedInstruction.addressingMode, addr);
-        case Opcode::ISC:
-            return this->op<Opcode::ISC>(decodedInstruction.addressingMode, addr);
+        case Opcode::ISB:
+            return this->op<Opcode::ISB>(decodedInstruction.addressingMode, addr);
         case Opcode::JMP:
             return this->op<Opcode::JMP>(decodedInstruction.addressingMode, addr);
         case Opcode::JSR:

@@ -11,7 +11,7 @@ TEST(NESTest, NesTestRom) {
 
     cpu.PC(0xc000);
 
-    for (uint64_t i = 0; i < 8000; i++) {
+    for (uint64_t i = 0; i < 9000; i++) {
         uint8_t numCycles = cpu.step();
         (void) numCycles;
     }
