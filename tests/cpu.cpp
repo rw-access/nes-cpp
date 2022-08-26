@@ -1,14 +1,16 @@
-#include "../src/cpu.h"
-#include "../src/nes.h"
-#include "../src/rom.h"
 #include <gtest/gtest.h>
+
+#define _NES_TEST
+#include "../src/console.h"
+#include "../src/cpu.h"
+#include "../src/rom.h"
 
 // Demonstrate some basic assertions.
 TEST(NESTest, NesTestRom) {
-    auto mapper = nes::LoadROM("roms/nestest.nes");
-    auto memory = std::make_unique<nes::Memory>(std::move(mapper));
-    auto cpu = nes::CPU(std::move(memory));
+    auto mapper = nes::LoadRomFile("roms/nestest.nes");
+    auto console = nes::Console::Create(std::move(mapper));
 
+    auto &cpu = *console->cpu;
     cpu.PC(0xc000);
 
     for (uint64_t i = 0; i < 9000; i++) {

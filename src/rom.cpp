@@ -1,4 +1,5 @@
-#include "memory.h"
+#include "rom.h"
+#include "cartridge.h"
 #include <errno.h>
 #include <fstream>
 #include <iostream>
@@ -102,7 +103,7 @@ static_assert(sizeof(inesHeader) == 16, "unexpected inesHeader size");
 static_assert(sizeof(nes2Header) == 16, "unexpected nes2Header size");
 static_assert(sizeof(anyHeader) == 16, "unexpected anyHeader size");
 
-std::unique_ptr<Mapper> LoadROM(const std::string &path) {
+std::unique_ptr<Mapper> LoadRomFile(const std::string &path) {
     std::ifstream romFile(path, std::ios_base::binary | std::ios_base::in);
     anyHeader hdr;
 

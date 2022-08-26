@@ -1,8 +1,8 @@
 #pragma once
-#include "mapper.h"
+#include "cartridge.h"
 #include "nes.h"
 
 namespace nes {
-std::unique_ptr<Mapper> LoadROM(const std::string &path);
 
+std::unique_ptr<Mapper> LoadRomFile(const std::string &path);
 }

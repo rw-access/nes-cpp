@@ -9,16 +9,19 @@ set(
 
 add_executable(nes
 
+        src/cartridge.cpp
+        src/cartridge.h
+        src/console.cpp
+        src/console.h
         src/cpu.cpp
         src/cpu.h
         src/main.cpp
-        src/mapper.cpp
-        src/mapper.h
-        src/memory.cpp
-        src/memory.h
         src/nes.h
+        src/ppu.cpp
+        src/ppu.h
         src/rom.cpp
-        src/rom.h)
+        src/rom.h
+        )
 
 
 include(FetchContent)
@@ -34,13 +37,15 @@ enable_testing()
 add_executable(
         nes_test
 
+        src/cartridge.cpp
+        src/cartridge.h
+        src/console.cpp
+        src/console.h
         src/cpu.cpp
         src/cpu.h
-        src/mapper.cpp
-        src/mapper.h
-        src/memory.cpp
-        src/memory.h
         src/nes.h
+        src/ppu.cpp
+        src/ppu.h
         src/rom.cpp
         src/rom.h
 

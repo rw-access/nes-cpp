@@ -4,10 +4,10 @@
 namespace nes {
 
 struct Cartridge {
-    std::vector<Word> prgRom;
-    std::vector<Word> chrRom;
-    std::vector<Word> instRom;
-    std::vector<Word> prgRam;
+    std::vector<Byte> prgRom;
+    std::vector<Byte> chrRom;
+    std::vector<Byte> instRom;
+    std::vector<Byte> prgRam;
 };
 
 using PCartridge = std::unique_ptr<Cartridge>;
@@ -24,12 +24,12 @@ public:
     Mapper(PCartridge &&c);
     virtual ~Mapper() = default;
 
-    Word Read(Address addr) const;
-    void Write(Address addr, Word data);
+    Byte Read(Address addr) const;
+    void Write(Address addr, Byte data);
 
     static std::unique_ptr<Mapper> Create(MapperType mapperType, PCartridge &&cart);
-    // Subclasses all need to implement unmap to decode an address to the target location
-    virtual const Word *unmap(Address addr) const = 0;
+    // Subclasses all need to implement decodeAddress to decode an address to the target location
+    virtual const Byte *decodeAddress(Address addr) const = 0;
 };
 
 }; // namespace nes

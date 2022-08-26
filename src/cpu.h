@@ -1,5 +1,6 @@
 #pragma once
-#include "memory.h"
+#include "cartridge.h"
+#include "console.h"
 #include "nes.h"
 #include "opcodes.def"
 
@@ -51,15 +52,15 @@ enum Flag : uint8_t {
     N = 7, // Negative Flag
 };
 
+
 class CPU {
     using Status = std::bitset<8>;
     using WordWithCarry = uint16_t;
-    using SignedWord = int8_t;
-    using SignedWordWithCarry = int16_t;
 
 private:
-    std::unique_ptr<Memory> memory;
-    Word regA, regX, regY, regSP;
+    Console &console;
+    std::array<Byte, 0x800> ram;
+    Byte regA, regX, regY, regSP;
     Address pc;
     Status status;
     uint64_t cycle;
@@ -68,37 +69,41 @@ private:
     //   that can optimize inlining of functions because the addressing node is known at compile time
     uint8_t dispatch(const DecodedInstruction &decodedInstruction, Address addr);
 
-    inline void setNZ(Word data);
+    inline void setNZ(Byte data);
     inline void setCNZ(WordWithCarry data);
 
-    // one templated forward declaration for all opcodes
     template<Opcode>
-    inline Word op(AddressingMode mode, Address addr);
+    inline Byte op(AddressingMode mode, Address addr);
+
+#define OP_MACRO(opcode)                                                                                               \
+    template<>                                                                                                         \
+    Byte op<Opcode::opcode>(AddressingMode mode, Address addr);
+    FOREACH_OPCODE(OP_MACRO)
+#undef OP_MACRO
 
     // general purpose branch instruction
-    inline Word BXX(Flag flag, bool isSet, Address addr);
+    inline Byte BXX(Flag flag, bool isSet, Address addr);
 
-    inline void push(Word data);
+    inline void push(Byte data);
     inline void pushAddress(Address addr);
 
-    inline Word pop();
+    inline Byte pop();
     inline Address popAddress();
 
-    Word read(Address addr) const;
+    Byte read(Address addr) const;
     Address readAddress(Address addr) const;
-    Address readAddressBug(Address addr) const;
+    Address readAddressIndirectWraparound(Address addr) const;
 
-    void write(Address addr, Word data);
+    void write(Address addr, Byte data);
 
 public:
-    CPU(std::unique_ptr<Memory> &&memory);
+    CPU(Console &c);
 
     // Execute a single instruction and return the number of cycles it took
     uint8_t step();
 
-    uint8_t debugStep();
-
     void PC(Address addr);
+    const Byte *decodeAddress(Address addr) const;
 };
 
 } // namespace nes

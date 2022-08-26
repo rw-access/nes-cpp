@@ -7,7 +7,6 @@
 
 namespace nes {
 
-//static_assert(__cplusplus == 0, "wtf");
 
 // clang-format off
 static const DecodedInstruction decodeTable[256]{
@@ -281,7 +280,7 @@ uint8_t CPU::step() {
 
     Address address = 0;
     Address indirect = 0;
-    Word offset = 0;
+    Byte offset = 0;
 
     this->pc++;
     uint8_t numCycles = 1;
@@ -318,21 +317,21 @@ uint8_t CPU::step() {
             // val = PEEK(
             // zero page wrap around
             offset = this->read(this->pc);
-            indirect = Word(offset + regX);
-            address = this->readAddressBug(indirect);
+            indirect = Byte(offset + regX);
+            address = this->readAddressIndirectWraparound(indirect);
             this->pc += 1;
             numCycles += 4; // read + add
             break;
         case AddressingMode::Indirect:
             indirect = this->readAddress(this->pc);
-            address = this->readAddressBug(indirect);
+            address = this->readAddressIndirectWraparound(indirect);
             this->pc += 2;
             numCycles += 2;
             break;
         case AddressingMode::IndirectIndexed:
             // val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)
             offset = this->read(this->pc);
-            indirect = this->readAddressBug(offset);
+            indirect = this->readAddressIndirectWraparound(offset);
             address = indirect + this->regY;
             this->pc += 1;
             numCycles += 3; // read + read + read + add
@@ -356,13 +355,13 @@ uint8_t CPU::step() {
             break;
         case AddressingMode::ZeroPageIndexedX:
             offset = this->read(this->pc);
-            address = Word(offset + this->regX);
+            address = Byte(offset + this->regX);
             numCycles++;
             this->pc++;
             break;
         case AddressingMode::ZeroPageIndexedY:
             offset = this->read(this->pc);
-            address = Word(offset + this->regY);
+            address = Byte(offset + this->regY);
             numCycles++;
             this->pc++;
             break;
@@ -491,7 +490,7 @@ uint8_t CPU::op<Opcode::ADC>(AddressingMode mode, Address addr) {
     WordWithCarry b = this->read(addr);
     WordWithCarry c = this->status[Flag::C];
     auto sum = a + b + c;
-    this->regA = Word(sum);
+    this->regA = Byte(sum);
 
     //  A  +   B  + C  =>  A   C Z V N
     // 127    127   1     -1   0 0 1 1
@@ -514,9 +513,10 @@ uint8_t CPU::op<Opcode::ADC>(AddressingMode mode, Address addr) {
     return 1;
 }
 
-// https://www.nesdev.org/obelisk-6502-guide/reference.html#AHX
+// http://www.oxyron.de/html/opcodes02.html
 template<>
 uint8_t CPU::op<Opcode::AHX>(AddressingMode mode, Address addr) {
+    // AHX {adr} = stores A&X&H into {adr}
     return 0;
 }
 
@@ -555,10 +555,10 @@ uint8_t CPU::op<Opcode::ASL>(AddressingMode mode, Address addr) {
 
     if (mode == AddressingMode::Accumulator) {
         resultWide = WordWithCarry(this->regA) << 1;
-        this->regA = Word(resultWide);
+        this->regA = Byte(resultWide);
     } else {
         resultWide = WordWithCarry(this->read(addr)) << 1;
-        this->write(addr, Word(resultWide));
+        this->write(addr, Byte(resultWide));
         numCycles += 2;
     }
 
@@ -648,7 +648,7 @@ uint8_t CPU::op<Opcode::BRK>(AddressingMode, Address) {
     this->status[Flag::B] = true;
 
     this->pushAddress(this->pc);
-    this->push(Word(this->status.to_ulong()));
+    this->push(Byte(this->status.to_ulong()));
 
     this->readAddress(0xfffe);
 
@@ -864,11 +864,11 @@ uint8_t CPU::op<Opcode::LSR>(AddressingMode mode, Address addr) {
     if (mode == AddressingMode::Accumulator) {
         wideData = WordWithCarry(this->regA);
         wideData = wideData >> 1 | (wideData & 0x01) << 8;
-        this->regA = Word(wideData);
+        this->regA = Byte(wideData);
     } else {
         wideData = WordWithCarry(this->read(addr));
         wideData = wideData >> 1 | (wideData & 0x01) << 8;
-        this->write(addr, Word(wideData));
+        this->write(addr, Byte(wideData));
         numCycles += 2;
     }
 
@@ -946,7 +946,7 @@ uint8_t CPU::op<Opcode::ROL>(AddressingMode mode, Address addr) {
     } else {
         wideData = WordWithCarry(this->read(addr));
         wideData = wideData << 1 | this->status[Flag::C];
-        this->write(addr, Word(wideData));
+        this->write(addr, Byte(wideData));
         numCycles += 2;
     }
 
@@ -976,7 +976,7 @@ uint8_t CPU::op<Opcode::ROR>(AddressingMode mode, Address addr) {
         wideData |= this->status[Flag::C] << 8;
         wideData |= (wideData & 0x1) << 9;
         wideData >>= 1;
-        this->write(addr, Word(wideData));
+        this->write(addr, Byte(wideData));
         numCycles += 2;
     }
 
@@ -986,9 +986,10 @@ uint8_t CPU::op<Opcode::ROR>(AddressingMode mode, Address addr) {
     return numCycles;
 }
 
-// https://www.nesdev.org/obelisk-6502-guide/reference.html#RRA
+// http://www.oxyron.de/html/opcodes02.html
 template<>
 uint8_t CPU::op<Opcode::RRA>(AddressingMode mode, Address addr) {
+    // RRA {adr} = ROR {adr} + ADC {adr}
     auto numCycles = this->op<Opcode::ROR>(mode, addr);
     numCycles += this->op<Opcode::ADC>(mode, addr);
     return numCycles;
@@ -1030,7 +1031,7 @@ uint8_t CPU::op<Opcode::SBC>(AddressingMode mode, Address addr) {
     auto m = WordWithCarry(this->read(addr));
 
     auto result = a - m - (1 - this->status[Flag::C]);
-    this->regA = Word(result);
+    this->regA = Byte(result);
     this->setNZ(result);
 
     // signs are the same before, but the sign changed after
@@ -1093,27 +1094,29 @@ uint8_t CPU::op<Opcode::SRE>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#STA
 template<>
 uint8_t CPU::op<Opcode::STA>(AddressingMode, Address addr) {
-    this->memory->Write(addr, this->regA);
+    this->write(addr, this->regA);
     return 1;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#STP
 template<>
 uint8_t CPU::op<Opcode::STP>(AddressingMode, Address addr) {
-    return 0;
+    // TODO: check if this was a good guess
+    this->write(addr, this->status.to_ulong());
+    return 1;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#STX
 template<>
 uint8_t CPU::op<Opcode::STX>(AddressingMode, Address addr) {
-    this->memory->Write(addr, this->regX);
+    this->write(addr, this->regX);
     return 1;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#STY
 template<>
 uint8_t CPU::op<Opcode::STY>(AddressingMode, Address addr) {
-    this->memory->Write(addr, this->regY);
+    this->write(addr, this->regY);
     return 1;
 }
 
@@ -1349,7 +1352,7 @@ uint8_t CPU::dispatch(const DecodedInstruction &decodedInstruction, Address addr
     }
 }
 
-void CPU::setNZ(Word data) {
+void CPU::setNZ(Byte data) {
     this->status[Flag::N] = (data & 0x80) != 0;
     this->status[Flag::Z] = data == 0;
 }
@@ -1361,19 +1364,19 @@ void CPU::setCNZ(WordWithCarry data) {
 }
 
 
-void CPU::push(Word data) {
-    this->memory->Write(0x100 + Address(this->regSP), data);
+void CPU::push(Byte data) {
+    this->write(0x100 + Address(this->regSP), data);
     this->regSP--;
 }
 
 void CPU::pushAddress(Address addr) {
-    Word hi = addr >> 8;
-    Word lo = addr & 0xff;
+    Byte hi = addr >> 8;
+    Byte lo = addr & 0xff;
     this->push(hi);
     this->push(lo);
 }
 
-Word CPU::pop() {
+Byte CPU::pop() {
     this->regSP++;
     auto data = this->read(0x100 + this->regSP);
     return data;
@@ -1385,12 +1388,38 @@ Address CPU::popAddress() {
     return hi << 8 | lo;
 }
 
-Word CPU::read(Address addr) const {
-    return this->memory->Read(addr);
+const Byte *CPU::decodeAddress(Address addr) const {
+    // https://www.nesdev.org/wiki/CPU_memory_map
+    if (addr < 0x2000)
+        return &this->ram[addr % this->ram.size()];
+
+    if (addr < 0x4000)
+        // return &this->console.ppu[addr % this->ppuReg.size()];
+        return nullptr;
+
+    if (addr < 0x4018)
+        // return &this->apu[addr - 0x4000];
+        return nullptr;
+
+    if (addr < 0x401f)
+        // only enabled for CPU test mode
+        return nullptr;
+
+    return this->console.mapper->decodeAddress(addr);
 }
 
-void CPU::write(Address addr, Word data) {
-    return this->memory->Write(addr, data);
+Byte CPU::read(Address addr) const {
+    auto unmappedAddr = this->decodeAddress(addr);
+    if (unmappedAddr == nullptr)
+        return 0;
+
+    return *unmappedAddr;
+}
+
+void CPU::write(Address addr, Byte data) {
+    auto unmappedAddr = const_cast<Byte *>(this->decodeAddress(addr));
+    if (unmappedAddr != nullptr)
+        *unmappedAddr = data;
 }
 
 Address CPU::readAddress(Address addr) const {
@@ -1400,7 +1429,7 @@ Address CPU::readAddress(Address addr) const {
     return highBits << 8 | lowBits;
 }
 
-Address CPU::readAddressBug(Address addr) const {
+Address CPU::readAddressIndirectWraparound(Address addr) const {
     // there was a bug in the original if the high byte crosses a page boundary,
     // it instead will wrap around
     auto loAddr = addr;
@@ -1416,8 +1445,8 @@ void CPU::PC(Address addr) {
     this->pc = addr;
 }
 
-CPU::CPU(std::unique_ptr<Memory> &&m) :
-    memory(std::move(m)),
+CPU::CPU(Console &c) :
+    console(c),
     pc(0),
     regA(0),
     regX(0),

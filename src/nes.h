@@ -9,7 +9,7 @@
 namespace nes {
 
 using Address = uint16_t;
-using Word = uint8_t;
+using Byte = uint8_t;
 
 
 } // namespace nes

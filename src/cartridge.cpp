@@ -1,4 +1,4 @@
-#include "mapper.h"
+#include "cartridge.h"
 
 namespace nes {
 
@@ -6,16 +6,16 @@ Mapper::Mapper(nes::PCartridge &&c) :
     cartridge(std::move(c)) {
 }
 
-Word Mapper::Read(nes::Address addr) const {
-    auto wordPtr = this->unmap(addr);
+Byte Mapper::Read(nes::Address addr) const {
+    auto wordPtr = this->decodeAddress(addr);
     if (nullptr == wordPtr)
         return 0;
 
     return *wordPtr;
 }
 
-void Mapper::Write(nes::Address addr, nes::Word data) {
-    auto wordPtr = const_cast<Word *>(this->unmap(addr));
+void Mapper::Write(nes::Address addr, nes::Byte data) {
+    auto wordPtr = const_cast<Byte *>(this->decodeAddress(addr));
     if (nullptr != wordPtr)
         *wordPtr = data;
 }
@@ -24,7 +24,7 @@ class INESMapper0 : public Mapper {
     using Mapper::Mapper;
 
 protected:
-    const Word *unmap(Address addr) const {
+    const Byte *decodeAddress(Address addr) const {
         if (addr < 0x6000) {
             return nullptr;
         } else if (addr < 0x8000) {
