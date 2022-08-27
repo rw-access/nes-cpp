@@ -1,5 +1,6 @@
 #include "cpu.h"
 #include "opcodes.def"
+#include "ppu.h"
 #include <iostream>
 #include <string_view>
 
@@ -1394,8 +1395,7 @@ const Byte *CPU::decodeAddress(Address addr) const {
         return &this->ram[addr % this->ram.size()];
 
     if (addr < 0x4000)
-        // return &this->console.ppu[addr % this->ppuReg.size()];
-        return nullptr;
+        return this->console.ppu->getRegister(PPURegister(addr % 8));
 
     if (addr < 0x4018)
         // return &this->apu[addr - 0x4000];

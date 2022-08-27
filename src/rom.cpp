@@ -13,18 +13,18 @@ struct inesHeader {
     std::array<uint8_t, 4> magic;   // NES \x1a
     uint8_t prgRomSize;             // 4: Size of PRG ROM in 16 KB units
     uint8_t chrRomSize;             // 5: Size of CHR ROM in 8 KB units (Value 0 means the board uses CHR RAM)
-    bool mirrorMode : 1;            // 6 0
-    bool hasBattery : 1;            // 6 1
-    bool hasTrainer : 1;            // 6 2
-    bool ignoreMirroring : 1;       // 6 3
-    uint8_t mapperLo : 4;           // 6 4..7
-    bool vsUnisystem : 1;           // 7 0
-    bool playChoice10 : 1;          // 7 1
-    uint8_t nes2_0 : 2;             // 7 2..3
-    uint8_t mapperHi : 4;           // 7 4..6
+    uint8_t mirrorMode    : 1;      // 6 0
+    bool hasBattery       : 1;      // 6 1
+    bool hasTrainer       : 1;      // 6 2
+    bool fourScreenMirror : 1;      // 6 3
+    uint8_t mapperLo      : 4;      // 6 4..7
+    bool vsUnisystem      : 1;      // 7 0
+    bool playChoice10     : 1;      // 7 1
+    uint8_t nes2_0        : 2;      // 7 2..3
+    uint8_t mapperHi      : 4;      // 7 4..6
     uint8_t prgRamSize;             // 8
     bool pal : 1;                   // 9 1
-    uint8_t : 7;                    // 9 2..7
+    uint8_t  : 7;                   // 9 2..7
     uint8_t tvSystemPrgRamPresence; // 10
     uint8_t padding[5];             // 11-15
 };
@@ -34,28 +34,28 @@ struct nes2Header {
     std::array<uint8_t, 4> magic; // 0-3: NES \x1a
     uint8_t prgRomSizeLo;         // 4: Size of PRG ROM in 16 KB units
     uint8_t chrSizeLo;            // 5: Size of CHR ROM in 8 KB units (Value 0 means the board uses CHR RAM)
-    bool mirrorMode : 1;          // 6 0
-    bool hasBattery : 1;          // 6 1
-    bool hasTrainer : 1;          // 6 2
+    bool mirrorMode      : 1;     // 6 0
+    bool hasBattery      : 1;     // 6 1
+    bool hasTrainer      : 1;     // 6 2
     bool ignoreMirroring : 1;     // 6 3
-    uint8_t mapperLo : 4;         // 6 4..7
+    uint8_t mapperLo     : 4;     // 6 4..7
     enum {
         Famicom,
         VsSystem,
         Playchoice10,
         ExtendedConsole,
-    } consoleType : 2;        // 7 0..1
-    uint8_t nes2_0 : 2;       // 7 2..3
-    uint8_t mapperMid : 4;    // 7 4..7
-    uint8_t mapperHi : 4;     // 8 0..3
-    uint8_t submapper : 4;    // 8 4..7
+    } consoleType        : 2; // 7 0..1
+    uint8_t nes2_0       : 2; // 7 2..3
+    uint8_t mapperMid    : 4; // 7 4..7
+    uint8_t mapperHi     : 4; // 8 0..3
+    uint8_t submapper    : 4; // 8 4..7
     uint8_t prgRomSizeHi : 4; // 9 0..3
     uint8_t chrRomSizeHi : 4; // 9 4..7
 
     // shift counts mean 64 << N bytes in size
-    uint8_t prgRamShiftCount : 4;    // 10 0..3
-    uint8_t prgNVRAMShiftCount : 4;  // 10 4..7
-    uint8_t chrRamShiftCount : 4;    // 11 0..3
+    uint8_t prgRamShiftCount    : 4; // 10 0..3
+    uint8_t prgNVRAMShiftCount  : 4; // 10 4..7
+    uint8_t chrRamShiftCount    : 4; // 11 0..3
     uint8_t chrEEPROMShiftCount : 4; // 11 4..7
 
     enum {
@@ -64,24 +64,24 @@ struct nes2Header {
         MultipleRegion,
         UMC6527P,
     } cpuTiming : 2; // 12 0..1
-    uint8_t : 6;     // 12 2..7
+    uint8_t     : 6; // 12 2..7
 
     union {
         struct {
-            uint8_t ppuType : 4;      // 13 0..3
+            uint8_t ppuType      : 4; // 13 0..3
             uint8_t hardwareType : 4; // 13 4..7
         };                            // when consoleType == VsSystem
 
         struct {
             uint8_t extendedConsoleType : 4; // 13 0..3
-            uint8_t : 4;                     // 13 4..7
+            uint8_t                     : 4; // 13 4..7
         };                                   // when consoleType == ExtendedConsole
     } tvSystemPrgRamPresence;                // 13
 
-    uint8_t miscellaneousRoms : 2;      // 14 0..1
-    uint8_t : 6;                        // 14 2..7
+    uint8_t miscellaneousRoms      : 2; // 14 0..1
+    uint8_t                        : 6; // 14 2..7
     uint8_t defaultExpansionDevice : 6; // 15 0..5
-    uint8_t : 2;                        // 15 6..7
+    uint8_t                        : 2; // 15 6..7
 };
 
 
@@ -104,6 +104,8 @@ static_assert(sizeof(nes2Header) == 16, "unexpected nes2Header size");
 static_assert(sizeof(anyHeader) == 16, "unexpected anyHeader size");
 
 std::unique_ptr<Mapper> LoadRomFile(const std::string &path) {
+    auto cartridge = std::make_unique<Cartridge>();
+
     std::ifstream romFile(path, std::ios_base::binary | std::ios_base::in);
     anyHeader hdr;
 
@@ -125,29 +127,28 @@ std::unique_ptr<Mapper> LoadRomFile(const std::string &path) {
     if (isNES2_0)
         throw std::runtime_error("TODO: support NES 2.0");
 
+    if (hdr.ines.fourScreenMirror)
+        cartridge->mirroringMode = Cartridge::MirroringMode::FourScreen;
+    else
+        cartridge->mirroringMode = Cartridge::MirroringMode(hdr.ines.mirrorMode);
+
     // skip over the trainer for now
     if (hdr.ines.hasTrainer)
         romFile.seekg(romFile.tellg() * 512);
 
     // read PRG ROM
-    std::vector<uint8_t> prgRom;
-    prgRom.resize(hdr.ines.prgRomSize * 16384);
-    romFile.read(reinterpret_cast<char *>(prgRom.data()), prgRom.size());
+    cartridge->prgROM.resize(hdr.ines.prgRomSize * 16384);
+    romFile.read(reinterpret_cast<char *>(cartridge->prgROM.data()), cartridge->prgROM.size());
 
     // read CHR ROM
-    std::vector<uint8_t> chrROM;
-    chrROM.resize(hdr.ines.chrRomSize * 8192);
-    romFile.read(reinterpret_cast<char *>(chrROM.data()), chrROM.size());
+    cartridge->chrROM.resize(hdr.ines.chrRomSize * 8192);
+    romFile.read(reinterpret_cast<char *>(cartridge->chrROM.data()), cartridge->chrROM.size());
 
-    // TODO: read INST ROM
+    // read prgRAM
+    cartridge->prgRAM.resize(hdr.ines.prgRamSize);
+    romFile.read(reinterpret_cast<char *>(cartridge->prgRAM.data()), cartridge->prgRAM.size());
 
-    // TODO: read PROM
 
-    // https://www.nesdev.org/wiki/CPU_memory_map
-    // $4020-$FFFF      $BFE0   Cartridge space: PRG ROM, PRG RAM, and mapper registers (See Note)
-    auto cartridge = std::make_unique<Cartridge>();
-    cartridge->prgRom = std::move(prgRom);
-    cartridge->chrRom = std::move(chrROM);
     return Mapper::Create(MapperType(hdr.ines.mapperHi << 4 | hdr.ines.mapperLo), std::move(cartridge));
 }
 } // namespace nes
