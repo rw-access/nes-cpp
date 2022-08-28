@@ -5,7 +5,7 @@
 namespace nes {
 
 
-enum class PPURegister : uint8_t {
+enum class PPURegister : Byte {
     PPUCTRL   = 0, // CPU @ 0x2000
     PPUMASK   = 1, // CPU @ 0x2001
     PPUSTATUS = 2, // CPU @ 0x2002
@@ -19,33 +19,37 @@ enum class PPURegister : uint8_t {
 
 union PPUCTRL {
     struct {
-        uint8_t baseNameTable                 : 2;
-        uint8_t vramAddressIncrement          : 1;
-        uint8_t spritePatternTableAddress     : 1;
-        uint8_t backgroundPatternTableAddress : 1;
-        uint8_t spriteSize                    : 1;
-        bool ppuMasterSelect                  : 1;
-        bool nmiOn                            : 1;
+        Byte baseNameTable                 : 2;
+        Byte vramAddressIncrement          : 1;
+        Byte spritePatternTableAddress     : 1;
+        Byte backgroundPatternTableAddress : 1;
+        Byte spriteSize                    : 1;
+        bool ppuMasterSelect               : 1;
+        bool nmiOn                         : 1;
     };
     struct {
-        uint8_t add256X : 1;
-        uint8_t add240Y : 1;
+        Byte add256X : 1;
+        Byte add240Y : 1;
     };
+    Byte raw;
 };
 
-struct PPUMASK {
-    bool greyscale           : 1;
-    bool showBackgroundLeft8 : 1;
-    bool showSpritesLeft8    : 1;
-    bool showBackground      : 1;
-    bool showSprites         : 1;
-    bool boostRed            : 1; // green on PAL/Dendy
-    bool boostGreen          : 1; // red on PAL/Dendy
-    bool boostBlue           : 1;
+union PPUMASK {
+    struct {
+        bool greyscale           : 1;
+        bool showBackgroundLeft8 : 1;
+        bool showSpritesLeft8    : 1;
+        bool showBackground      : 1;
+        bool showSprites         : 1;
+        bool boostRed            : 1; // green on PAL/Dendy
+        bool boostGreen          : 1; // red on PAL/Dendy
+        bool boostBlue           : 1;
+    };
+    Byte raw;
 };
 
 struct PPUSTATUS {
-    uint8_t PPUOpenBus  : 5;
+    Byte PPUOpenBus     : 5;
     bool spriteOverflow : 1;
     bool spriteZeroHit  : 1;
     bool inVBlank       : 1;
@@ -62,19 +66,26 @@ struct PPUAddress {
 };
 
 struct Sprite {
-    uint8_t yPosTop; // byte 0
+    Byte yPosTop; // byte 0
     struct {
-        uint8_t bank          : 1;
-        uint8_t tileNumberTop : 7;
+        Byte bank          : 1;
+        Byte tileNumberTop : 7;
     } TileIndex; // byte 1
     struct {
-        uint8_t palette               : 2;
-        uint8_t                       : 3;
+        Byte palette                  : 2;
+        Byte                          : 3;
         bool priorityBehindBackground : 1;
         bool flipHorizontal           : 1;
         bool flipVertical             : 1;
-    } Attributes;     // byte 2
-    uint8_t xPosLeft; // byte 3
+    } Attributes;  // byte 2
+    Byte xPosLeft; // byte 3
+};
+
+struct TileData {
+    Byte NameTableByte;
+    Byte AttributeTableByte;
+    Byte PatternTableLow;
+    Byte PatternTableHigh;
 };
 
 static_assert(sizeof(PPUCTRL) == 1);
@@ -85,24 +96,41 @@ static_assert(sizeof(Sprite) == 4);
 
 class PPU {
 private:
-    std::array<Byte, 8> registers;
     Console &console;
-    uint16_t scanLine;        // range [0, 260]
-    uint16_t pixelInScanLine; // range [0, 340]
-    std::array<Byte, 256> oam;
-    std::array<Byte, 32> paletteRam;
-    std::array<Byte, 2048> nametables;
+    PPUCTRL ctrlReg                   = {.raw = 0};
+    Byte status                       = {0};
+    PPUMASK ppuMask                   = {.raw = 0};
+    uint16_t scanLine                 = 261; // range [0, 261]
+    uint16_t cycleInScanLine          = 0;   // range [0, 340]
+    uint64_t frame                    = 0;
+    std::array<Byte, 256> oam         = {0}; // 64 sprites
+    std::array<Byte, 8> secondaryOam  = {0}; // up to 8 sprites on the current line
+    std::array<Byte, 32> paletteRam   = {0};
+    std::array<Byte, 2048> nametables = {0};
+    TileData pendingTile;
+
+    uint8_t oamAddr           = 0;
+    Address vramAddr     : 15 = 0;
+    Address tempVramAddr : 15 = 0;
+    uint8_t fineXScroll  : 3  = 0;
+    bool writeToggle     : 1  = 0;
 
     const Byte *decodeAddress(Address addr) const;
     Byte read(Address addr) const;
     void write(Address addr, Byte data);
 
+
+    void stepVisible();
+    void stepPreRender();
+    void stepPostRender();
+    void stepVBlank();
+
 public:
     PPU(Console &console);
 
-    const Byte *getRegister(PPURegister reg) const;
-    Byte readRegister(PPURegister reg) const;
-    void writeRegister(nes::PPURegister reg, Byte data);
+    Byte readRegister(Address addr) const;
+    void writeRegister(Address addr, Byte data);
+    void step();
 };
 
 } // namespace nes

@@ -3,20 +3,49 @@
 
 namespace nes {
 PPU::PPU(Console &c) :
-    registers{0},
     console(c){};
 
-const Byte *PPU::getRegister(nes::PPURegister reg) const {
-    return &this->registers[uint8_t(reg) % 8];
+Byte PPU::readRegister(Address addr) const {
+    switch (addr % 8) {
+        case 1: // PPUCTRL: $2001
+            return this->status;
+        case 4: // OAMDATA: $2004
+            return this->oam[this->oamAddr];
+        case 7: // PPUDATA: $2007
+            break;
+    }
+
+    return 0;
 }
 
-Byte PPU::readRegister(nes::PPURegister reg) const {
-    return *this->getRegister(reg);
-}
-
-void PPU::writeRegister(nes::PPURegister reg, Byte data) {
-    auto pReg = const_cast<Byte *>(this->getRegister(reg));
-    *pReg     = data;
+void PPU::writeRegister(Address addr, Byte data) {
+    switch (addr % 8) {
+        case 0: // PPUCTRL: $2000
+            this->ctrlReg.raw = data;
+            break;
+        case 2: // PPUMASK: $2001
+            this->ppuMask.raw = data;
+            break;
+        case 3: // OAMADDR: $2003
+            if (this->writeToggle == 0)
+                this->oamAddr = (this->oamAddr & 0xff00) | data;
+            else
+                this->oamAddr = data << 8 | (this->oamAddr & 0x00ff);
+            break;
+        case 4: // OAMDATA: $2004
+            this->oam[this->oamAddr] = data;
+            this->oamAddr++;
+            break;
+        case 5: // PPUSCROLL: $2005
+            // TODO
+            break;
+        case 6: // PPUADDR: $2006
+            // TODO
+            break;
+        case 7: // PPUDATA: 2007
+            // TODO
+            break;
+    }
 }
 
 // https://www.nesdev.org/wiki/Mirroring#Nametable_Mirroring
@@ -68,6 +97,93 @@ void PPU::write(Address addr, Byte data) {
     auto pByte = const_cast<Byte *>(this->decodeAddress(addr));
     if (pByte != nullptr) {
         *pByte = data;
+    }
+}
+
+
+void PPU::stepPreRender() {
+    // Pre-render scanline (-1 or 261)
+}
+
+void PPU::stepVisible() {
+    if (!this->ppuMask.showBackground && !this->ppuMask.showSprites)
+        return;
+
+    if (this->cycleInScanLine == 0) {
+        // idle
+    } else if (this->cycleInScanLine <= 256) {
+        // The data for each tile is fetched during this phase. Each memory access takes 2 PPU cycles to complete,
+        // and 4 must be performed per tile:
+        //
+        // * Nametable byte
+        // * Attribute table byte
+        // * Pattern table tile low
+        // * Pattern table tile high (+8 bytes from pattern table tile low)
+        //
+        // The data fetched from these accesses is placed into internal latches, and then fed to the appropriate
+        // shift registers when it's time to do so (every 8 cycles). Because the PPU can only fetch an attribute
+        // byte every 8 cycles, each sequential string of 8 pixels is forced to have the same palette attribute.
+        //
+        // Sprite zero hits act as if the image starts at cycle 2 (which is the same cycle that the shifters shift
+        // for the first time), so the sprite zero flag will be raised at this point at the earliest. Actual pixel
+        // output is delayed further due to internal render pipelining, and the first pixel is output during cycle 4.
+        //
+        // The shifters are reloaded during ticks 9, 17, 25, ..., 257.
+        //
+        // Note: At the beginning of each scanline, the data for the first two tiles is already loaded into the shift
+        // registers (and ready to be rendered), so the first tile that gets fetched is Tile 3.
+        //
+        // While all of this is going on, sprite evaluation for the next scanline is taking place as a separate process,
+        // independent to what's happening here.
+
+        // ultimately, we're retrieving and rendering a strip of 8 pixels long as a single unit
+        // this way, it averages 1 pixel / cycle
+        auto x = this->cycleInScanLine - 1;
+        switch (x % 8) {
+            case 2:
+                break;
+            case 4:
+                break;
+            case 6:
+                break;
+            case 7:
+                break;
+        }
+    }
+}
+
+void PPU::stepPostRender() {
+}
+
+
+void PPU::stepVBlank() {
+}
+
+void PPU::step() {
+    // https://www.nesdev.org/wiki/PPU_rendering#Line-by-line_timing
+    if (this->scanLine <= 239) {
+        this->stepVisible();
+    } else if (this->scanLine == 240) {
+        this->stepPreRender();
+    } else if (this->scanLine <= 260) {
+        this->stepVBlank();
+    } else {
+        this->stepPreRender();
+    }
+
+    if (this->cycleInScanLine == 340) {
+        this->cycleInScanLine = 0;
+
+        if (this->scanLine == 261) {
+            this->scanLine = 0;
+            this->frame++;
+            this->cycleInScanLine += (this->frame & 1); // skip the first frame for odd frames
+        } else {
+            this->scanLine++;
+        }
+
+    } else {
+        this->cycleInScanLine++;
     }
 }
 

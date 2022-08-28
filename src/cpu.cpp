@@ -275,13 +275,13 @@ static bool crossesPageBoundary(Address a, Address b) {
 }
 
 uint8_t CPU::step() {
-    auto prePC = this->pc;
+    auto prePC         = this->pc;
     auto instFirstByte = this->read(this->pc);
-    auto decoded = decodeTable[instFirstByte];
+    auto decoded       = decodeTable[instFirstByte];
 
-    Address address = 0;
-    Address indirect = 0;
-    Byte offset = 0;
+    Address address    = 0;
+    Address indirect   = 0;
+    Byte offset        = 0;
 
     this->pc++;
     uint8_t numCycles = 1;
@@ -303,13 +303,13 @@ uint8_t CPU::step() {
             break;
         case AddressingMode::AbsoluteIndexedX:
             indirect = this->readAddress(this->pc);
-            address = indirect + this->regX;
+            address  = indirect + this->regX;
             this->pc += 2;
             numCycles += 3; // read + read + add
             break;
         case AddressingMode::AbsoluteIndexedY:
             indirect = this->readAddress(this->pc);
-            address = indirect + this->regY;
+            address  = indirect + this->regY;
             this->pc += 2;
             numCycles += 3; // read + read + add
             break;
@@ -317,23 +317,23 @@ uint8_t CPU::step() {
             // val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256)
             // val = PEEK(
             // zero page wrap around
-            offset = this->read(this->pc);
+            offset   = this->read(this->pc);
             indirect = Byte(offset + regX);
-            address = this->readAddressIndirectWraparound(indirect);
+            address  = this->readAddressIndirectWraparound(indirect);
             this->pc += 1;
             numCycles += 4; // read + add
             break;
         case AddressingMode::Indirect:
             indirect = this->readAddress(this->pc);
-            address = this->readAddressIndirectWraparound(indirect);
+            address  = this->readAddressIndirectWraparound(indirect);
             this->pc += 2;
             numCycles += 2;
             break;
         case AddressingMode::IndirectIndexed:
             // val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)
-            offset = this->read(this->pc);
+            offset   = this->read(this->pc);
             indirect = this->readAddressIndirectWraparound(offset);
-            address = indirect + this->regY;
+            address  = indirect + this->regY;
             this->pc += 1;
             numCycles += 3; // read + read + read + add
             break;
@@ -349,19 +349,19 @@ uint8_t CPU::step() {
                 address = this->pc + Address(offset);
             break;
         case AddressingMode::ZeroPage:
-            offset = this->read(this->pc);
+            offset  = this->read(this->pc);
             address = offset;
             this->pc++;
             numCycles++;
             break;
         case AddressingMode::ZeroPageIndexedX:
-            offset = this->read(this->pc);
+            offset  = this->read(this->pc);
             address = Byte(offset + this->regX);
             numCycles++;
             this->pc++;
             break;
         case AddressingMode::ZeroPageIndexedY:
-            offset = this->read(this->pc);
+            offset  = this->read(this->pc);
             address = Byte(offset + this->regY);
             numCycles++;
             this->pc++;
@@ -378,7 +378,7 @@ uint8_t CPU::step() {
     if (DBG_PRINT) {
         // debug buffer, more than enough to include everything
         // C000  4C F5 C5  JMP $C5F5                       A:00 X:00 Y:00 P:24 SP:FD
-        char buf[80] = "";
+        char buf[80]    = "";
         char *remaining = buf;
         remaining += sprintf(remaining, "%04X  ", prePC);
 
@@ -490,8 +490,8 @@ uint8_t CPU::op<Opcode::ADC>(AddressingMode mode, Address addr) {
     WordWithCarry a = this->regA;
     WordWithCarry b = this->read(addr);
     WordWithCarry c = this->status[Flag::C];
-    auto sum = a + b + c;
-    this->regA = Byte(sum);
+    auto sum        = a + b + c;
+    this->regA      = Byte(sum);
 
     //  A  +   B  + C  =>  A   C Z V N
     // 127    127   1     -1   0 0 1 1
@@ -552,7 +552,7 @@ uint8_t CPU::op<Opcode::ARR>(AddressingMode mode, Address addr) {
 template<>
 uint8_t CPU::op<Opcode::ASL>(AddressingMode mode, Address addr) {
     WordWithCarry resultWide = 0;
-    uint8_t numCycles = 2;
+    uint8_t numCycles        = 2;
 
     if (mode == AddressingMode::Accumulator) {
         resultWide = WordWithCarry(this->regA) << 1;
@@ -579,7 +579,7 @@ uint8_t CPU::BXX(Flag flag, bool isSet, Address addr) {
 
     if (this->status[flag] == isSet) {
         numCycles = 1 + crossesPageBoundary(this->pc, addr);
-        this->pc = addr;
+        this->pc  = addr;
     }
 
     return numCycles;
@@ -606,8 +606,8 @@ uint8_t CPU::op<Opcode::BEQ>(AddressingMode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BIT
 template<>
 uint8_t CPU::op<Opcode::BIT>(AddressingMode, Address addr) {
-    auto m = this->read(addr);
-    auto result = this->regA & m;
+    auto m                = this->read(addr);
+    auto result           = this->regA & m;
     this->status[Flag::Z] = (result == 0);
     this->status[Flag::V] = (m & 0x40) != 0;
     this->status[Flag::N] = (m & 0x80) != 0;
@@ -699,8 +699,8 @@ uint8_t CPU::op<Opcode::CLV>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#CMP
 template<>
 uint8_t CPU::op<Opcode::CMP>(AddressingMode mode, Address addr) {
-    auto a = this->regA;
-    auto m = this->read(addr);
+    auto a    = this->regA;
+    auto m    = this->read(addr);
     auto data = a - m;
     this->setNZ(data);
     this->status[Flag::C] = a >= m;
@@ -721,8 +721,8 @@ uint8_t CPU::op<Opcode::CPX>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#CPY
 template<>
 uint8_t CPU::op<Opcode::CPY>(AddressingMode mode, Address addr) {
-    auto y = this->regY;
-    auto m = this->read(addr);
+    auto y    = this->regY;
+    auto m    = this->read(addr);
     auto data = y - m;
     this->setNZ(data);
     this->status[Flag::C] = y >= m;
@@ -789,7 +789,7 @@ template<>
 uint8_t CPU::op<Opcode::INX>(AddressingMode, Address) {
     this->regX++;
     this->setNZ(this->regX);
-    // 2 cycle minimum, already counted one
+    // 2 frame minimum, already counted one
     return 1;
 }
 
@@ -798,7 +798,7 @@ template<>
 uint8_t CPU::op<Opcode::INY>(AddressingMode, Address) {
     this->regY++;
     this->setNZ(this->regY);
-    // 2 cycle minimum, already counted one
+    // 2 frame minimum, already counted one
     return 1;
 }
 
@@ -863,8 +863,8 @@ uint8_t CPU::op<Opcode::LSR>(AddressingMode mode, Address addr) {
     uint8_t numCycles = 0;
 
     if (mode == AddressingMode::Accumulator) {
-        wideData = WordWithCarry(this->regA);
-        wideData = wideData >> 1 | (wideData & 0x01) << 8;
+        wideData   = WordWithCarry(this->regA);
+        wideData   = wideData >> 1 | (wideData & 0x01) << 8;
         this->regA = Byte(wideData);
     } else {
         wideData = WordWithCarry(this->read(addr));
@@ -882,7 +882,7 @@ uint8_t CPU::op<Opcode::LSR>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#NOP
 template<>
 uint8_t CPU::op<Opcode::NOP>(AddressingMode, Address) {
-    // two cycle minimum
+    // two frame minimum
     return 1;
 }
 
@@ -927,8 +927,8 @@ uint8_t CPU::op<Opcode::PLP>(AddressingMode, Address) {
     // Two instructions (PLP and RTI) pull a byte from the stack and set all the flags.
     // They ignore bits 5 (U) and 4 (B).
     // https://www.nesdev.org/wiki/Status_flags
-    auto prevStatus = this->status;
-    this->status = this->pop();
+    auto prevStatus       = this->status;
+    this->status          = this->pop();
     this->status[Flag::U] = prevStatus[Flag::U];
     this->status[Flag::B] = prevStatus[Flag::B];
     return 3;
@@ -941,8 +941,8 @@ uint8_t CPU::op<Opcode::ROL>(AddressingMode mode, Address addr) {
     uint8_t numCycles = 0;
 
     if (mode == AddressingMode::Accumulator) {
-        wideData = WordWithCarry(this->regA);
-        wideData = wideData << 1 | this->status[Flag::C];
+        wideData   = WordWithCarry(this->regA);
+        wideData   = wideData << 1 | this->status[Flag::C];
         this->regA = wideData;
     } else {
         wideData = WordWithCarry(this->read(addr));
@@ -1002,12 +1002,12 @@ uint8_t CPU::op<Opcode::RTI>(AddressingMode, Address) {
     // Two instructions (PLP and RTI) pull a byte from the stack and set all the flags.
     // They ignore bits 5 (U) and 4 (B).
     // https://www.nesdev.org/wiki/Status_flags
-    auto prevStatus = this->status;
-    this->status = this->pop();
+    auto prevStatus       = this->status;
+    this->status          = this->pop();
     this->status[Flag::U] = prevStatus[Flag::U];
     this->status[Flag::B] = prevStatus[Flag::B];
 
-    this->pc = this->popAddress();
+    this->pc              = this->popAddress();
     return 5;
 }
 
@@ -1028,11 +1028,11 @@ uint8_t CPU::op<Opcode::SAX>(AddressingMode mode, Address addr) {
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SBC
 template<>
 uint8_t CPU::op<Opcode::SBC>(AddressingMode mode, Address addr) {
-    auto a = WordWithCarry(this->regA);
-    auto m = WordWithCarry(this->read(addr));
+    auto a      = WordWithCarry(this->regA);
+    auto m      = WordWithCarry(this->read(addr));
 
     auto result = a - m - (1 - this->status[Flag::C]);
-    this->regA = Byte(result);
+    this->regA  = Byte(result);
     this->setNZ(result);
 
     // signs are the same before, but the sign changed after
@@ -1389,41 +1389,43 @@ Address CPU::popAddress() {
     return hi << 8 | lo;
 }
 
-const Byte *CPU::decodeAddress(Address addr) const {
+Byte CPU::read(Address addr) const {
     // https://www.nesdev.org/wiki/CPU_memory_map
     if (addr < 0x2000)
-        return &this->ram[addr % this->ram.size()];
+        return this->ram[addr % this->ram.size()];
 
     if (addr < 0x4000)
-        return this->console.ppu->getRegister(PPURegister(addr % 8));
+        return this->console.ppu->readRegister(addr);
 
     if (addr < 0x4018)
         // return &this->apu[addr - 0x4000];
-        return nullptr;
+        return 0;
 
     if (addr < 0x401f)
         // only enabled for CPU test mode
-        return nullptr;
-
-    return this->console.mapper->decodeAddress(addr);
-}
-
-Byte CPU::read(Address addr) const {
-    auto unmappedAddr = this->decodeAddress(addr);
-    if (unmappedAddr == nullptr)
         return 0;
 
-    return *unmappedAddr;
+    return 0;
 }
 
 void CPU::write(Address addr, Byte data) {
-    auto unmappedAddr = const_cast<Byte *>(this->decodeAddress(addr));
-    if (unmappedAddr != nullptr)
-        *unmappedAddr = data;
+    if (addr < 0x2000)
+        this->ram[addr % this->ram.size()] = data;
+
+    if (addr < 0x4000)
+        this->console.ppu->writeRegister(0x2000 | (addr & 0x7), data);
+
+    if (addr < 0x4018)
+        // return &this->apu[addr - 0x4000];
+        return;
+
+    if (addr < 0x401f)
+        // only enabled for CPU test mode
+        return;
 }
 
 Address CPU::readAddress(Address addr) const {
-    auto lowBits = this->read(addr);
+    auto lowBits  = this->read(addr);
     auto highBits = this->read(addr + 1);
 
     return highBits << 8 | lowBits;
@@ -1432,10 +1434,10 @@ Address CPU::readAddress(Address addr) const {
 Address CPU::readAddressIndirectWraparound(Address addr) const {
     // there was a bug in the original if the high byte crosses a page boundary,
     // it instead will wrap around
-    auto loAddr = addr;
-    auto hiAddr = (loAddr & 0xff00) | 0x00ff & (loAddr + 1);
+    auto loAddr   = addr;
+    auto hiAddr   = (loAddr & 0xff00) | 0x00ff & (loAddr + 1);
 
-    auto lowBits = this->read(loAddr);
+    auto lowBits  = this->read(loAddr);
     auto highBits = this->read(hiAddr);
 
     return highBits << 8 | lowBits;

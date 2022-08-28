@@ -54,7 +54,7 @@ enum Flag : uint8_t {
 
 
 class CPU {
-    using Status = std::bitset<8>;
+    using Status        = std::bitset<8>;
     using WordWithCarry = uint16_t;
 
 private:
@@ -103,7 +103,6 @@ public:
     uint8_t step();
 
     void PC(Address addr);
-    const Byte *decodeAddress(Address addr) const;
 };
 
 } // namespace nes
