@@ -1,11 +1,17 @@
 cmake_minimum_required(VERSION 3.23)
 project(nes)
 
+include(FetchContent)
 set(
         CMAKE_CXX_STANDARD 20
         CMAKE_CXX_STANDARD_REQUIRED ON
         CMAKE_REQUIRED_FLAGS -std=c++20
 )
+
+
+find_package(SDL2 REQUIRED)
+find_library(SDL2_LIBRARY NAME SDL2)
+#set(SDL_LIBRARIES ${SDL_LIBRARIES} SDL2main SDL2-static SDL2_image)
 
 add_executable(nes
 
@@ -23,8 +29,9 @@ add_executable(nes
         src/rom.h
         )
 
+include_directories(nes ${SDL2_INCLUDE_DIRS})
+target_link_libraries(nes ${SDL2_LIBRARIES})
 
-include(FetchContent)
 FetchContent_Declare(
         googletest
         GIT_REPOSITORY https://github.com/google/googletest.git
@@ -49,11 +56,15 @@ add_executable(
         src/rom.cpp
         src/rom.h
 
-        tests/cpu.cpp)
+        tests/cpu.cpp
+)
 
+include_directories(nes_test ${SDL2_INCLUDE_DIRS})
+target_link_libraries(nes_test ${SDL2_LIBRARIES})
 target_link_libraries(
         nes_test
         GTest::gtest_main
+        ${SDL_LIBRARIES}
 )
 
 include(GoogleTest)
