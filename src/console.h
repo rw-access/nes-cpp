@@ -1,5 +1,6 @@
 #pragma once
 #include "cartridge.h"
+#include "controller.h"
 #include "nes.h"
 #include <SDL_surface.h>
 
@@ -19,6 +20,7 @@ public:
 #else
 private:
 #endif
+    Controller controller;
     std::unique_ptr<Mapper> mapper;
     std::unique_ptr<PPU> ppu;
     std::unique_ptr<CPU> cpu;
@@ -31,6 +33,8 @@ public:
     void StepFrame();
 
     void DrawFrame(SDL_Surface *surface) const;
+
+    void SetButton(Buttons button, bool status);
 };
 
 } // namespace nes

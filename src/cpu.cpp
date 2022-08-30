@@ -1401,6 +1401,9 @@ Byte CPU::read(Address addr) const {
     if (addr < 0x4000)
         return this->console.ppu->readRegister(addr);
 
+    if (addr == 0x4016)
+        return this->console.controller.Read();
+
     if (addr < 0x4018)
         // return &this->apu[addr - 0x4000];
         return 0;
@@ -1418,6 +1421,8 @@ void CPU::write(Address addr, Byte data) {
 
     else if (addr < 0x4000)
         this->console.ppu->writeRegister(0x2000 | (addr & 0x7), data);
+    else if (addr == 0x4016)
+        return this->console.controller.Write(data);
 
     else if (addr < 0x4018)
         // return &this->apu[addr - 0x4000];

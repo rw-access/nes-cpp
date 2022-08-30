@@ -50,4 +50,8 @@ void Console::DrawFrame(SDL_Surface *surface) const {
     }
 }
 
+void Console::SetButton(Buttons button, bool status) {
+    this->controller.buttons[uint8_t(button)] = status;
+}
+
 } // namespace nes

@@ -122,25 +122,44 @@ int runRom() {
 
     // draw 10 frames, which is enough to tell that it works
     for (auto f = 0; f < 10; f++) {
-        console->StepFrame();
-        console->DrawFrame(screenSurface);
-
-
-        if (SDL_UpdateWindowSurface(window.get()) < 0) {
-            std::cout << "could not update window" << SDL_GetError();
-            return 5;
-        }
     }
 
 
     SDL_Event e;
     bool quit = false;
+
+    // A, B, Select, Start, Up, Down, Left, Right
+    const static SDL_Scancode keyBindings[] = {
+            SDL_SCANCODE_K, SDL_SCANCODE_J, SDL_SCANCODE_COMMA, SDL_SCANCODE_PERIOD,
+            SDL_SCANCODE_W, SDL_SCANCODE_S, SDL_SCANCODE_A,     SDL_SCANCODE_D,
+    };
+
     while (!quit) {
+        console->StepFrame();
+        console->DrawFrame(screenSurface);
+
+        if (SDL_UpdateWindowSurface(window.get()) < 0) {
+            std::cout << "could not update window" << SDL_GetError();
+            return 5;
+        }
+
         while (SDL_PollEvent(&e)) {
-            if (e.type == SDL_QUIT) {
-                quit = true;
+            switch (e.type) {
+                case SDL_QUIT:
+                    quit = true;
+                    break;
+                case SDL_KEYDOWN:
+                case SDL_KEYUP:
+                    for (auto i = 0; i < 8; i++) {
+                        if (keyBindings[i] == e.key.keysym.scancode)
+                            console->SetButton(nes::Buttons(i), e.type == SDL_KEYDOWN);
+                    }
+                    break;
             }
         }
+
+        // hacky scheduler for now
+        SDL_Delay(1000 / 60);
     }
 
     window.reset();
