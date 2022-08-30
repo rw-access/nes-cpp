@@ -7,11 +7,25 @@
 
 // Demonstrate some basic assertions.
 TEST(NESTest, NesTestRom) {
-    auto mapper = nes::LoadRomFile("roms/nestest.nes");
+    auto mapper  = nes::LoadRomFile("roms/nestest.nes");
     auto console = nes::Console::Create(std::move(mapper));
 
-    auto &cpu = *console->cpu;
+    auto &cpu    = *console->cpu;
     cpu.PC(0xc000);
+
+    for (uint64_t i = 0; i < 9000; i++) {
+        uint8_t numCycles = cpu.step();
+        (void) numCycles;
+    }
+}
+
+// Demonstrate some basic assertions.
+TEST(NESTest, NesTestRomFull) {
+    auto mapper  = nes::LoadRomFile("roms/nestest.nes");
+    auto console = nes::Console::Create(std::move(mapper));
+
+    auto &cpu    = *console->cpu;
+    //    cpu.pc(0xc000);
 
     for (uint64_t i = 0; i < 9000; i++) {
         uint8_t numCycles = cpu.step();

@@ -20,4 +20,34 @@ std::shared_ptr<Console> Console::Create(std::unique_ptr<Mapper> &&m) {
     return console;
 }
 
+void Console::StepFrame() {
+    uint64_t prevFrame = this->ppu->currentFrame();
+
+    while (prevFrame == this->ppu->currentFrame()) {
+        uint8_t numCycles = this->cpu->step();
+        for (auto cycle = 0; cycle < numCycles; cycle++) {
+            this->ppu->step();
+            this->ppu->step();
+            this->ppu->step();
+        }
+    }
+}
+
+
+void Console::DrawFrame(SDL_Surface *surface) const {
+    auto pixels     = static_cast<uint32_t *>(surface->pixels);
+    auto format     = surface->format;
+    auto &screen    = this->ppu->completedScreen();
+
+    auto pixelIndex = 0;
+    for (auto y = 0; y < this->ppu->SCREEN_HEIGHT; y++) {
+        for (auto x = 0; x < this->ppu->SCREEN_WIDTH; x++, pixelIndex++) {
+            auto pixelRGBA = screen[y][x];
+
+            pixels[pixelIndex] =
+                    SDL_MapRGBA(format, uint8_t(pixelRGBA >> 16), uint8_t(pixelRGBA >> 8), uint8_t(pixelRGBA), 0xff);
+        }
+    }
+}
+
 } // namespace nes

@@ -23,6 +23,12 @@ enum class AddressingMode : uint8_t {
     ZeroPageIndexedY, // $xx,X       d,y
 };
 
+enum class Interrupt : uint8_t {
+    None = 0,
+    IRQ  = 1,
+    NMI  = 2,
+};
+
 enum class Opcode : uint8_t {
 #define OP_MACRO(op) op,
     FOREACH_OPCODE(OP_MACRO)
@@ -64,6 +70,7 @@ private:
     Address pc;
     Status status;
     uint64_t cycle;
+    Interrupt pendingInterrupt = Interrupt::None;
 
     // TODO: consider make an opcode-based jump table of 256 entries for more specialized code,
     //   that can optimize inlining of functions because the addressing node is known at compile time
@@ -101,8 +108,12 @@ public:
 
     // Execute a single instruction and return the number of cycles it took
     uint8_t step();
+    void reset();
+
+    void interrupt(Interrupt interrupt);
 
     void PC(Address addr);
+    uint8_t handleInterrupt();
 };
 
 } // namespace nes

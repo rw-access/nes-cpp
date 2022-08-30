@@ -4,7 +4,7 @@
 #include <iostream>
 #include <string_view>
 
-#define DBG_PRINT 1
+#define DBG_PRINT 0
 
 namespace nes {
 
@@ -275,6 +275,10 @@ static bool crossesPageBoundary(Address a, Address b) {
 }
 
 uint8_t CPU::step() {
+    uint8_t numCycles = this->handleInterrupt();
+    if (numCycles > 0)
+        return numCycles;
+
     auto prePC         = this->pc;
     auto instFirstByte = this->read(this->pc);
     auto decoded       = decodeTable[instFirstByte];
@@ -283,8 +287,8 @@ uint8_t CPU::step() {
     Address indirect   = 0;
     Byte offset        = 0;
 
+    numCycles++;
     this->pc++;
-    uint8_t numCycles = 1;
 
     switch (decoded.addressingMode) {
         case AddressingMode::Implied:
@@ -305,13 +309,13 @@ uint8_t CPU::step() {
             indirect = this->readAddress(this->pc);
             address  = indirect + this->regX;
             this->pc += 2;
-            numCycles += 3; // read + read + add
+            numCycles += 2; // read + read + add
             break;
         case AddressingMode::AbsoluteIndexedY:
             indirect = this->readAddress(this->pc);
             address  = indirect + this->regY;
             this->pc += 2;
-            numCycles += 3; // read + read + add
+            numCycles += 2; // read + read + add
             break;
         case AddressingMode::IndexedIndirect:
             // val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256)
@@ -369,10 +373,6 @@ uint8_t CPU::step() {
     };
 
     auto nextPC = this->pc;
-
-    // every instFirstByte should be at least two cycles
-    numCycles += numCycles < 2;
-    this->cycle += numCycles;
 
 
     if (DBG_PRINT) {
@@ -476,11 +476,15 @@ uint8_t CPU::step() {
         std::cout << buf << std::endl;
     }
 
+
     // add this point, num cycles doesn't include any Read operations,
     // and it only contains time for address calculations
     numCycles += this->dispatch(decoded, address);
 
-
+    // every instFirstByte should be at least two cycles
+    numCycles += numCycles < 2;
+    this->cycle += numCycles;
+    //    printf("%04x %s %d\n", prePC, OpcodeStrings[uint8_t(decoded.opcode)], numCycles);
     return numCycles;
 }
 
@@ -1405,22 +1409,25 @@ Byte CPU::read(Address addr) const {
         // only enabled for CPU test mode
         return 0;
 
-    return 0;
+    return this->console.mapper->Read(addr);
 }
 
 void CPU::write(Address addr, Byte data) {
     if (addr < 0x2000)
         this->ram[addr % this->ram.size()] = data;
 
-    if (addr < 0x4000)
+    else if (addr < 0x4000)
         this->console.ppu->writeRegister(0x2000 | (addr & 0x7), data);
 
-    if (addr < 0x4018)
+    else if (addr < 0x4018)
         // return &this->apu[addr - 0x4000];
         return;
 
-    if (addr < 0x401f)
+    else if (addr < 0x401f)
         // only enabled for CPU test mode
+        return;
+
+    else
         return;
 }
 
@@ -1443,20 +1450,44 @@ Address CPU::readAddressIndirectWraparound(Address addr) const {
     return highBits << 8 | lowBits;
 }
 
+void CPU::interrupt(Interrupt interrupt) {
+    if (interrupt > this->pendingInterrupt)
+        this->pendingInterrupt = interrupt;
+}
+
 void CPU::PC(Address addr) {
     this->pc = addr;
 }
 
-CPU::CPU(Console &c) :
-    console(c),
-    pc(0),
-    regA(0),
-    regX(0),
-    regY(0),
-    regSP(0xfd),
-    status(0x0),
-    cycle(0) {
+uint8_t CPU::handleInterrupt() {
+    Address handlerAddress;
+    switch (this->pendingInterrupt) {
+        case Interrupt::None:
+            return 0;
+        case Interrupt::NMI:
+            handlerAddress = 0xFFFA;
+            break;
+        case Interrupt::IRQ:
+            handlerAddress = 0xFFFE;
+            break;
+    }
+
+    this->pushAddress(this->pc);
+    this->op<Opcode::PHP>(AddressingMode::Implied, 0);
+    this->pc               = this->readAddress(handlerAddress);
+    this->status[Flag::I]  = 1;
+    this->pendingInterrupt = Interrupt::None;
+    return 7;
+}
+
+void CPU::reset() {
     // https://www.nesdev.org/wiki/CPU_ALL#At_power-up
+    this->regA            = 0;
+    this->regX            = 0;
+    this->regY            = 0;
+    this->regSP           = 0xfd;
+    this->status          = 0;
+    this->cycle           = 0;
 
     this->status[Flag::U] = true;
     this->status[Flag::I] = true;
@@ -1469,5 +1500,10 @@ CPU::CPU(Console &c) :
 
     for (Address addr = 0x4000; addr <= 0x4013; addr++)
         this->write(addr, 0x0);
+}
+
+CPU::CPU(Console &c) :
+    console(c) {
+    this->reset();
 }
 } // namespace nes

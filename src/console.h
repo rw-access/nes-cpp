@@ -1,6 +1,7 @@
 #pragma once
 #include "cartridge.h"
 #include "nes.h"
+#include <SDL_surface.h>
 
 namespace nes {
 
@@ -22,11 +23,14 @@ private:
     std::unique_ptr<PPU> ppu;
     std::unique_ptr<CPU> cpu;
 
-
     Console(std::unique_ptr<Mapper> &&);
 
 public:
     static std::shared_ptr<Console> Create(std::unique_ptr<Mapper> &&);
+
+    void StepFrame();
+
+    void DrawFrame(SDL_Surface *surface) const;
 };
 
 } // namespace nes
