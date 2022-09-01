@@ -7,266 +7,266 @@
 
 namespace nes {
 
-static bool DBG_PRINT = false;
+static bool DBG_PRINT = true;
 
 // clang-format off
 static const DecodedInstruction decodeTable[256]{
-        {Opcode::BRK, AddressingMode::Implied},
-        {Opcode::ORA, AddressingMode::IndexedIndirect},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode::SLO, AddressingMode::IndexedIndirect},
-        {Opcode::NOP, AddressingMode::ZeroPage},
-        {Opcode::ORA, AddressingMode::ZeroPage},
-        {Opcode::ASL, AddressingMode::ZeroPage},
-        {Opcode::SLO, AddressingMode::ZeroPage},
-        {Opcode::PHP, AddressingMode::Implied},
-        {Opcode::ORA, AddressingMode::Immediate},
-        {Opcode::ASL, AddressingMode::Accumulator},
-        {Opcode::ANC, AddressingMode::Immediate},
-        {Opcode::NOP, AddressingMode::Absolute},
-        {Opcode::ORA, AddressingMode::Absolute},
-        {Opcode::ASL, AddressingMode::Absolute},
-        {Opcode::SLO, AddressingMode::Absolute},
-        {Opcode::BPL, AddressingMode::Relative},
-        {Opcode::ORA, AddressingMode::IndirectIndexed},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode::SLO, AddressingMode::IndirectIndexed},
-        {Opcode::NOP, AddressingMode::ZeroPageIndexedX},
-        {Opcode::ORA, AddressingMode::ZeroPageIndexedX},
-        {Opcode::ASL, AddressingMode::ZeroPageIndexedX},
-        {Opcode::SLO, AddressingMode::ZeroPageIndexedX},
-        {Opcode::CLC, AddressingMode::Implied},
-        {Opcode::ORA, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::Implied},
-        {Opcode::SLO, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::AbsoluteIndexedX},
-        {Opcode::ORA, AddressingMode::AbsoluteIndexedX},
-        {Opcode::ASL, AddressingMode::AbsoluteIndexedX},
-        {Opcode::SLO, AddressingMode::AbsoluteIndexedX},
-        {Opcode::JSR, AddressingMode::Absolute},
-        {Opcode::AND, AddressingMode::IndexedIndirect},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode::RLA, AddressingMode::IndexedIndirect},
-        {Opcode::BIT, AddressingMode::ZeroPage},
-        {Opcode::AND, AddressingMode::ZeroPage},
-        {Opcode::ROL, AddressingMode::ZeroPage},
-        {Opcode::RLA, AddressingMode::ZeroPage},
-        {Opcode::PLP, AddressingMode::Implied},
-        {Opcode::AND, AddressingMode::Immediate},
-        {Opcode::ROL, AddressingMode::Accumulator},
-        {Opcode::ANC, AddressingMode::Immediate},
-        {Opcode::BIT, AddressingMode::Absolute},
-        {Opcode::AND, AddressingMode::Absolute},
-        {Opcode::ROL, AddressingMode::Absolute},
-        {Opcode::RLA, AddressingMode::Absolute},
-        {Opcode::BMI, AddressingMode::Relative},
-        {Opcode::AND, AddressingMode::IndirectIndexed},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode::RLA, AddressingMode::IndirectIndexed},
-        {Opcode::NOP, AddressingMode::ZeroPageIndexedX},
-        {Opcode::AND, AddressingMode::ZeroPageIndexedX},
-        {Opcode::ROL, AddressingMode::ZeroPageIndexedX},
-        {Opcode::RLA, AddressingMode::ZeroPageIndexedX},
-        {Opcode::SEC, AddressingMode::Implied},
-        {Opcode::AND, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::Implied},
-        {Opcode::RLA, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::AbsoluteIndexedX},
-        {Opcode::AND, AddressingMode::AbsoluteIndexedX},
-        {Opcode::ROL, AddressingMode::AbsoluteIndexedX},
-        {Opcode::RLA, AddressingMode::AbsoluteIndexedX},
-        {Opcode::RTI, AddressingMode::Implied},
-        {Opcode::EOR, AddressingMode::IndexedIndirect},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode::SRE, AddressingMode::IndexedIndirect},
-        {Opcode::NOP, AddressingMode::ZeroPage},
-        {Opcode::EOR, AddressingMode::ZeroPage},
-        {Opcode::LSR, AddressingMode::ZeroPage},
-        {Opcode::SRE, AddressingMode::ZeroPage},
-        {Opcode::PHA, AddressingMode::Implied},
-        {Opcode::EOR, AddressingMode::Immediate},
-        {Opcode::LSR, AddressingMode::Accumulator},
-        {Opcode::ALR, AddressingMode::Immediate},
-        {Opcode::JMP, AddressingMode::Absolute},
-        {Opcode::EOR, AddressingMode::Absolute},
-        {Opcode::LSR, AddressingMode::Absolute},
-        {Opcode::SRE, AddressingMode::Absolute},
-        {Opcode::BVC, AddressingMode::Relative},
-        {Opcode::EOR, AddressingMode::IndirectIndexed},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode::SRE, AddressingMode::IndirectIndexed},
-        {Opcode::NOP, AddressingMode::ZeroPageIndexedX},
-        {Opcode::EOR, AddressingMode::ZeroPageIndexedX},
-        {Opcode::LSR, AddressingMode::ZeroPageIndexedX},
-        {Opcode::SRE, AddressingMode::ZeroPageIndexedX},
-        {Opcode::CLI, AddressingMode::Implied},
-        {Opcode::EOR, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::Implied},
-        {Opcode::SRE, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::AbsoluteIndexedX},
-        {Opcode::EOR, AddressingMode::AbsoluteIndexedX},
-        {Opcode::LSR, AddressingMode::AbsoluteIndexedX},
-        {Opcode::SRE, AddressingMode::AbsoluteIndexedX},
-        {Opcode::RTS, AddressingMode::Implied},
-        {Opcode::ADC, AddressingMode::IndexedIndirect},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode::RRA, AddressingMode::IndexedIndirect},
-        {Opcode::NOP, AddressingMode::ZeroPage},
-        {Opcode::ADC, AddressingMode::ZeroPage},
-        {Opcode::ROR, AddressingMode::ZeroPage},
-        {Opcode::RRA, AddressingMode::ZeroPage},
-        {Opcode::PLA, AddressingMode::Implied},
-        {Opcode::ADC, AddressingMode::Immediate},
-        {Opcode::ROR, AddressingMode::Accumulator},
-        {Opcode::ARR, AddressingMode::Immediate},
-        {Opcode::JMP, AddressingMode::Indirect},
-        {Opcode::ADC, AddressingMode::Absolute},
-        {Opcode::ROR, AddressingMode::Absolute},
-        {Opcode::RRA, AddressingMode::Absolute},
-        {Opcode::BVS, AddressingMode::Relative},
-        {Opcode::ADC, AddressingMode::IndirectIndexed},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode::RRA, AddressingMode::IndirectIndexed},
-        {Opcode::NOP, AddressingMode::ZeroPageIndexedX},
-        {Opcode::ADC, AddressingMode::ZeroPageIndexedX},
-        {Opcode::ROR, AddressingMode::ZeroPageIndexedX},
-        {Opcode::RRA, AddressingMode::ZeroPageIndexedX},
-        {Opcode::SEI, AddressingMode::Implied},
-        {Opcode::ADC, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::Implied},
-        {Opcode::RRA, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::AbsoluteIndexedX},
-        {Opcode::ADC, AddressingMode::AbsoluteIndexedX},
-        {Opcode::ROR, AddressingMode::AbsoluteIndexedX},
-        {Opcode::RRA, AddressingMode::AbsoluteIndexedX},
-        {Opcode::NOP, AddressingMode::Immediate},
-        {Opcode::STA, AddressingMode::IndexedIndirect},
-        {Opcode::NOP, AddressingMode::Immediate},
-        {Opcode::SAX, AddressingMode::IndexedIndirect},
-        {Opcode::STY, AddressingMode::ZeroPage},
-        {Opcode::STA, AddressingMode::ZeroPage},
-        {Opcode::STX, AddressingMode::ZeroPage},
-        {Opcode::SAX, AddressingMode::ZeroPage},
-        {Opcode::DEY, AddressingMode::Implied},
-        {Opcode::NOP, AddressingMode::Immediate},
-        {Opcode::TXA, AddressingMode::Implied},
-        {Opcode::XAA, AddressingMode::Immediate},
-        {Opcode::STY, AddressingMode::Absolute},
-        {Opcode::STA, AddressingMode::Absolute},
-        {Opcode::STX, AddressingMode::Absolute},
-        {Opcode::SAX, AddressingMode::Absolute},
-        {Opcode::BCC, AddressingMode::Relative},
-        {Opcode::STA, AddressingMode::IndirectIndexed},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode::AHX, AddressingMode::IndirectIndexed},
-        {Opcode::STY, AddressingMode::ZeroPageIndexedX},
-        {Opcode::STA, AddressingMode::ZeroPageIndexedX},
-        {Opcode::STX, AddressingMode::ZeroPageIndexedY},
-        {Opcode::SAX, AddressingMode::ZeroPageIndexedY},
-        {Opcode::TYA, AddressingMode::Implied},
-        {Opcode::STA, AddressingMode::AbsoluteIndexedY},
-        {Opcode::TXS, AddressingMode::Implied},
-        {Opcode::TAS, AddressingMode::AbsoluteIndexedY},
-        {Opcode::SHY, AddressingMode::AbsoluteIndexedX},
-        {Opcode::STA, AddressingMode::AbsoluteIndexedX},
-        {Opcode::SHX, AddressingMode::AbsoluteIndexedY},
-        {Opcode::AHX, AddressingMode::AbsoluteIndexedY},
-        {Opcode::LDY, AddressingMode::Immediate},
-        {Opcode::LDA, AddressingMode::IndexedIndirect},
-        {Opcode::LDX, AddressingMode::Immediate},
-        {Opcode::LAX, AddressingMode::IndexedIndirect},
-        {Opcode::LDY, AddressingMode::ZeroPage},
-        {Opcode::LDA, AddressingMode::ZeroPage},
-        {Opcode::LDX, AddressingMode::ZeroPage},
-        {Opcode::LAX, AddressingMode::ZeroPage},
-        {Opcode::TAY, AddressingMode::Implied},
-        {Opcode::LDA, AddressingMode::Immediate},
-        {Opcode::TAX, AddressingMode::Implied},
-        {Opcode::LAX, AddressingMode::Immediate},
-        {Opcode::LDY, AddressingMode::Absolute},
-        {Opcode::LDA, AddressingMode::Absolute},
-        {Opcode::LDX, AddressingMode::Absolute},
-        {Opcode::LAX, AddressingMode::Absolute},
-        {Opcode::BCS, AddressingMode::Relative},
-        {Opcode::LDA, AddressingMode::IndirectIndexed},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode::LAX, AddressingMode::IndirectIndexed},
-        {Opcode::LDY, AddressingMode::ZeroPageIndexedX},
-        {Opcode::LDA, AddressingMode::ZeroPageIndexedX},
-        {Opcode::LDX, AddressingMode::ZeroPageIndexedY},
-        {Opcode::LAX, AddressingMode::ZeroPageIndexedY},
-        {Opcode::CLV, AddressingMode::Implied},
-        {Opcode::LDA, AddressingMode::AbsoluteIndexedY},
-        {Opcode::TSX, AddressingMode::Implied},
-        {Opcode::LAS, AddressingMode::AbsoluteIndexedY},
-        {Opcode::LDY, AddressingMode::AbsoluteIndexedX},
-        {Opcode::LDA, AddressingMode::AbsoluteIndexedX},
-        {Opcode::LDX, AddressingMode::AbsoluteIndexedY},
-        {Opcode::LAX, AddressingMode::AbsoluteIndexedY},
-        {Opcode::CPY, AddressingMode::Immediate},
-        {Opcode::CMP, AddressingMode::IndexedIndirect},
-        {Opcode::NOP, AddressingMode::Immediate},
-        {Opcode::DCP, AddressingMode::IndexedIndirect},
-        {Opcode::CPY, AddressingMode::ZeroPage},
-        {Opcode::CMP, AddressingMode::ZeroPage},
-        {Opcode::DEC, AddressingMode::ZeroPage},
-        {Opcode::DCP, AddressingMode::ZeroPage},
-        {Opcode::INY, AddressingMode::Implied},
-        {Opcode::CMP, AddressingMode::Immediate},
-        {Opcode::DEX, AddressingMode::Implied},
-        {Opcode::AXS, AddressingMode::Immediate},
-        {Opcode::CPY, AddressingMode::Absolute},
-        {Opcode::CMP, AddressingMode::Absolute},
-        {Opcode::DEC, AddressingMode::Absolute},
-        {Opcode::DCP, AddressingMode::Absolute},
-        {Opcode::BNE, AddressingMode::Relative},
-        {Opcode::CMP, AddressingMode::IndirectIndexed},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode::DCP, AddressingMode::IndirectIndexed},
-        {Opcode::NOP, AddressingMode::ZeroPageIndexedX},
-        {Opcode::CMP, AddressingMode::ZeroPageIndexedX},
-        {Opcode::DEC, AddressingMode::ZeroPageIndexedX},
-        {Opcode::DCP, AddressingMode::ZeroPageIndexedX},
-        {Opcode::CLD, AddressingMode::Implied},
-        {Opcode::CMP, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::Implied},
-        {Opcode::DCP, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::AbsoluteIndexedX},
-        {Opcode::CMP, AddressingMode::AbsoluteIndexedX},
-        {Opcode::DEC, AddressingMode::AbsoluteIndexedX},
-        {Opcode::DCP, AddressingMode::AbsoluteIndexedX},
-        {Opcode::CPX, AddressingMode::Immediate},
-        {Opcode::SBC, AddressingMode::IndexedIndirect},
-        {Opcode::NOP, AddressingMode::Immediate},
-        {Opcode:: ISB, AddressingMode::IndexedIndirect},
-        {Opcode::CPX, AddressingMode::ZeroPage},
-        {Opcode::SBC, AddressingMode::ZeroPage},
-        {Opcode::INC, AddressingMode::ZeroPage},
-        {Opcode:: ISB, AddressingMode::ZeroPage},
-        {Opcode::INX, AddressingMode::Implied},
-        {Opcode::SBC, AddressingMode::Immediate},
-        {Opcode::NOP, AddressingMode::Implied},
-        {Opcode::SBC, AddressingMode::Immediate},
-        {Opcode::CPX, AddressingMode::Absolute},
-        {Opcode::SBC, AddressingMode::Absolute},
-        {Opcode::INC, AddressingMode::Absolute},
-        {Opcode:: ISB, AddressingMode::Absolute},
-        {Opcode::BEQ, AddressingMode::Relative},
-        {Opcode::SBC, AddressingMode::IndirectIndexed},
-        {Opcode::STP, AddressingMode::Implied},
-        {Opcode:: ISB, AddressingMode::IndirectIndexed},
-        {Opcode::NOP, AddressingMode::ZeroPageIndexedX},
-        {Opcode::SBC, AddressingMode::ZeroPageIndexedX},
-        {Opcode::INC, AddressingMode::ZeroPageIndexedX},
-        {Opcode:: ISB, AddressingMode::ZeroPageIndexedX},
-        {Opcode::SED, AddressingMode::Implied},
-        {Opcode::SBC, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::Implied},
-        {Opcode:: ISB, AddressingMode::AbsoluteIndexedY},
-        {Opcode::NOP, AddressingMode::AbsoluteIndexedX},
-        {Opcode::SBC, AddressingMode::AbsoluteIndexedX},
-        {Opcode::INC, AddressingMode::AbsoluteIndexedX},
-        {Opcode:: ISB, AddressingMode::AbsoluteIndexedX},
+        {Opcode::BRK, AddressingMode::Implied, 7, false},
+        {Opcode::ORA, AddressingMode::IndexedIndirect, 6, false},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::SLO, AddressingMode::IndexedIndirect, 8, false},
+        {Opcode::NOP, AddressingMode::ZeroPage, 3, false},
+        {Opcode::ORA, AddressingMode::ZeroPage, 3, false},
+        {Opcode::ASL, AddressingMode::ZeroPage, 5, false},
+        {Opcode::SLO, AddressingMode::ZeroPage, 5, false},
+        {Opcode::PHP, AddressingMode::Implied, 3, false},
+        {Opcode::ORA, AddressingMode::Immediate, 2, false},
+        {Opcode::ASL, AddressingMode::Accumulator, 2, false},
+        {Opcode::ANC, AddressingMode::Immediate, 2, false},
+        {Opcode::NOP, AddressingMode::Absolute, 4, false},
+        {Opcode::ORA, AddressingMode::Absolute, 4, false},
+        {Opcode::ASL, AddressingMode::Absolute, 6, false},
+        {Opcode::SLO, AddressingMode::Absolute, 6, false},
+        {Opcode::BPL, AddressingMode::Relative, 2, true},
+        {Opcode::ORA, AddressingMode::IndirectIndexed, 5, true},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::SLO, AddressingMode::IndirectIndexed, 8, false},
+        {Opcode::NOP, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::ORA, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::ASL, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::SLO, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::CLC, AddressingMode::Implied, 2, false},
+        {Opcode::ORA, AddressingMode::AbsoluteIndexedY, 4, true},
+        {Opcode::NOP, AddressingMode::Implied, 2, false},
+        {Opcode::SLO, AddressingMode::AbsoluteIndexedY, 7, false},
+        {Opcode::NOP, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::ORA, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::ASL, AddressingMode::AbsoluteIndexedX, 7, false},
+        {Opcode::SLO, AddressingMode::AbsoluteIndexedX, 7, false},
+        {Opcode::JSR, AddressingMode::Absolute, 6, false},
+        {Opcode::AND, AddressingMode::IndexedIndirect, 6, false},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::RLA, AddressingMode::IndexedIndirect, 8, false},
+        {Opcode::BIT, AddressingMode::ZeroPage, 3, false},
+        {Opcode::AND, AddressingMode::ZeroPage, 3, false},
+        {Opcode::ROL, AddressingMode::ZeroPage, 5, false},
+        {Opcode::RLA, AddressingMode::ZeroPage, 5, false},
+        {Opcode::PLP, AddressingMode::Implied, 4, false},
+        {Opcode::AND, AddressingMode::Immediate, 2, false},
+        {Opcode::ROL, AddressingMode::Accumulator, 2, false},
+        {Opcode::ANC, AddressingMode::Immediate, 2, false},
+        {Opcode::BIT, AddressingMode::Absolute, 4, false},
+        {Opcode::AND, AddressingMode::Absolute, 4, false},
+        {Opcode::ROL, AddressingMode::Absolute, 6, false},
+        {Opcode::RLA, AddressingMode::Absolute, 6, false},
+        {Opcode::BMI, AddressingMode::Relative, 2, true},
+        {Opcode::AND, AddressingMode::IndirectIndexed, 5, true},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::RLA, AddressingMode::IndirectIndexed, 8, false},
+        {Opcode::NOP, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::AND, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::ROL, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::RLA, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::SEC, AddressingMode::Implied, 2, false},
+        {Opcode::AND, AddressingMode::AbsoluteIndexedY, 4, true},
+        {Opcode::NOP, AddressingMode::Implied, 2, false},
+        {Opcode::RLA, AddressingMode::AbsoluteIndexedY, 7, false},
+        {Opcode::NOP, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::AND, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::ROL, AddressingMode::AbsoluteIndexedX, 7, false},
+        {Opcode::RLA, AddressingMode::AbsoluteIndexedX, 7, false},
+        {Opcode::RTI, AddressingMode::Implied, 6, false},
+        {Opcode::EOR, AddressingMode::IndexedIndirect, 6, false},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::SRE, AddressingMode::IndexedIndirect, 8, false},
+        {Opcode::NOP, AddressingMode::ZeroPage, 3, false},
+        {Opcode::EOR, AddressingMode::ZeroPage, 3, false},
+        {Opcode::LSR, AddressingMode::ZeroPage, 5, false},
+        {Opcode::SRE, AddressingMode::ZeroPage, 5, false},
+        {Opcode::PHA, AddressingMode::Implied, 3, false},
+        {Opcode::EOR, AddressingMode::Immediate, 2, false},
+        {Opcode::LSR, AddressingMode::Accumulator, 2, false},
+        {Opcode::ALR, AddressingMode::Immediate, 2, false},
+        {Opcode::JMP, AddressingMode::Absolute, 3, false},
+        {Opcode::EOR, AddressingMode::Absolute, 4, false},
+        {Opcode::LSR, AddressingMode::Absolute, 6, false},
+        {Opcode::SRE, AddressingMode::Absolute, 6, false},
+        {Opcode::BVC, AddressingMode::Relative, 2, true},
+        {Opcode::EOR, AddressingMode::IndirectIndexed, 5, true},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::SRE, AddressingMode::IndirectIndexed, 8, false},
+        {Opcode::NOP, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::EOR, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::LSR, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::SRE, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::CLI, AddressingMode::Implied, 2, false},
+        {Opcode::EOR, AddressingMode::AbsoluteIndexedY, 4, true},
+        {Opcode::NOP, AddressingMode::Implied, 2, false},
+        {Opcode::SRE, AddressingMode::AbsoluteIndexedY, 7, false},
+        {Opcode::NOP, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::EOR, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::LSR, AddressingMode::AbsoluteIndexedX, 7, false},
+        {Opcode::SRE, AddressingMode::AbsoluteIndexedX, 7, false},
+        {Opcode::RTS, AddressingMode::Implied, 6, false},
+        {Opcode::ADC, AddressingMode::IndexedIndirect, 6, false},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::RRA, AddressingMode::IndexedIndirect, 8, false},
+        {Opcode::NOP, AddressingMode::ZeroPage, 3, false},
+        {Opcode::ADC, AddressingMode::ZeroPage, 3, false},
+        {Opcode::ROR, AddressingMode::ZeroPage, 5, false},
+        {Opcode::RRA, AddressingMode::ZeroPage, 5, false},
+        {Opcode::PLA, AddressingMode::Implied, 4, false},
+        {Opcode::ADC, AddressingMode::Immediate, 2, false},
+        {Opcode::ROR, AddressingMode::Accumulator, 2, false},
+        {Opcode::ARR, AddressingMode::Immediate, 2, false},
+        {Opcode::JMP, AddressingMode::Indirect, 5, false},
+        {Opcode::ADC, AddressingMode::Absolute, 4, false},
+        {Opcode::ROR, AddressingMode::Absolute, 6, false},
+        {Opcode::RRA, AddressingMode::Absolute, 6, false},
+        {Opcode::BVS, AddressingMode::Relative, 2, true},
+        {Opcode::ADC, AddressingMode::IndirectIndexed, 5, true},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::RRA, AddressingMode::IndirectIndexed, 8, false},
+        {Opcode::NOP, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::ADC, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::ROR, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::RRA, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::SEI, AddressingMode::Implied, 2, false},
+        {Opcode::ADC, AddressingMode::AbsoluteIndexedY, 4, true},
+        {Opcode::NOP, AddressingMode::Implied, 2, false},
+        {Opcode::RRA, AddressingMode::AbsoluteIndexedY, 7, false},
+        {Opcode::NOP, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::ADC, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::ROR, AddressingMode::AbsoluteIndexedX, 7, false},
+        {Opcode::RRA, AddressingMode::AbsoluteIndexedX, 7, false},
+        {Opcode::NOP, AddressingMode::Immediate, 2, false},
+        {Opcode::STA, AddressingMode::IndexedIndirect, 6, false},
+        {Opcode::NOP, AddressingMode::Immediate, 2, false},
+        {Opcode::SAX, AddressingMode::IndexedIndirect, 6, false},
+        {Opcode::STY, AddressingMode::ZeroPage, 3, false},
+        {Opcode::STA, AddressingMode::ZeroPage, 3, false},
+        {Opcode::STX, AddressingMode::ZeroPage, 3, false},
+        {Opcode::SAX, AddressingMode::ZeroPage, 3, false},
+        {Opcode::DEY, AddressingMode::Implied, 2, false},
+        {Opcode::NOP, AddressingMode::Immediate, 2, false},
+        {Opcode::TXA, AddressingMode::Implied, 2, false},
+        {Opcode::XAA, AddressingMode::Immediate, 2, false},
+        {Opcode::STY, AddressingMode::Absolute, 4, false},
+        {Opcode::STA, AddressingMode::Absolute, 4, false},
+        {Opcode::STX, AddressingMode::Absolute, 4, false},
+        {Opcode::SAX, AddressingMode::Absolute, 4, false},
+        {Opcode::BCC, AddressingMode::Relative, 2, true},
+        {Opcode::STA, AddressingMode::IndirectIndexed, 6, false},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::AHX, AddressingMode::IndirectIndexed, 6, false},
+        {Opcode::STY, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::STA, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::STX, AddressingMode::ZeroPageIndexedY, 4, false},
+        {Opcode::SAX, AddressingMode::ZeroPageIndexedY, 4, false},
+        {Opcode::TYA, AddressingMode::Implied, 2, false},
+        {Opcode::STA, AddressingMode::AbsoluteIndexedY, 5, false},
+        {Opcode::TXS, AddressingMode::Implied, 2, false},
+        {Opcode::TAS, AddressingMode::AbsoluteIndexedY, 5, false},
+        {Opcode::SHY, AddressingMode::AbsoluteIndexedX, 5, false},
+        {Opcode::STA, AddressingMode::AbsoluteIndexedX, 5, false},
+        {Opcode::SHX, AddressingMode::AbsoluteIndexedY, 5, false},
+        {Opcode::AHX, AddressingMode::AbsoluteIndexedY, 5, false},
+        {Opcode::LDY, AddressingMode::Immediate, 2, false},
+        {Opcode::LDA, AddressingMode::IndexedIndirect, 6, false},
+        {Opcode::LDX, AddressingMode::Immediate, 2, false},
+        {Opcode::LAX, AddressingMode::IndexedIndirect, 6, false},
+        {Opcode::LDY, AddressingMode::ZeroPage, 3, false},
+        {Opcode::LDA, AddressingMode::ZeroPage, 3, false},
+        {Opcode::LDX, AddressingMode::ZeroPage, 3, false},
+        {Opcode::LAX, AddressingMode::ZeroPage, 3, false},
+        {Opcode::TAY, AddressingMode::Implied, 2, false},
+        {Opcode::LDA, AddressingMode::Immediate, 2, false},
+        {Opcode::TAX, AddressingMode::Implied, 2, false},
+        {Opcode::LAX, AddressingMode::Immediate, 2, false},
+        {Opcode::LDY, AddressingMode::Absolute, 4, false},
+        {Opcode::LDA, AddressingMode::Absolute, 4, false},
+        {Opcode::LDX, AddressingMode::Absolute, 4, false},
+        {Opcode::LAX, AddressingMode::Absolute, 4, false},
+        {Opcode::BCS, AddressingMode::Relative, 2, true},
+        {Opcode::LDA, AddressingMode::IndirectIndexed, 5, true},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::LAX, AddressingMode::IndirectIndexed, 5, true},
+        {Opcode::LDY, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::LDA, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::LDX, AddressingMode::ZeroPageIndexedY, 4, false},
+        {Opcode::LAX, AddressingMode::ZeroPageIndexedY, 4, false},
+        {Opcode::CLV, AddressingMode::Implied, 2, false},
+        {Opcode::LDA, AddressingMode::AbsoluteIndexedY, 4, true},
+        {Opcode::TSX, AddressingMode::Implied, 2, false},
+        {Opcode::LAS, AddressingMode::AbsoluteIndexedY, 4, true},
+        {Opcode::LDY, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::LDA, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::LDX, AddressingMode::AbsoluteIndexedY, 4, true},
+        {Opcode::LAX, AddressingMode::AbsoluteIndexedY, 4, true},
+        {Opcode::CPY, AddressingMode::Immediate, 2, false},
+        {Opcode::CMP, AddressingMode::IndexedIndirect, 6, false},
+        {Opcode::NOP, AddressingMode::Immediate, 2, false},
+        {Opcode::DCP, AddressingMode::IndexedIndirect, 8, false},
+        {Opcode::CPY, AddressingMode::ZeroPage, 3, false},
+        {Opcode::CMP, AddressingMode::ZeroPage, 3, false},
+        {Opcode::DEC, AddressingMode::ZeroPage, 5, false},
+        {Opcode::DCP, AddressingMode::ZeroPage, 5, false},
+        {Opcode::INY, AddressingMode::Implied, 2, false},
+        {Opcode::CMP, AddressingMode::Immediate, 2, false},
+        {Opcode::DEX, AddressingMode::Implied, 2, false},
+        {Opcode::AXS, AddressingMode::Immediate, 2, false},
+        {Opcode::CPY, AddressingMode::Absolute, 4, false},
+        {Opcode::CMP, AddressingMode::Absolute, 4, false},
+        {Opcode::DEC, AddressingMode::Absolute, 6, false},
+        {Opcode::DCP, AddressingMode::Absolute, 6, false},
+        {Opcode::BNE, AddressingMode::Relative, 2, true},
+        {Opcode::CMP, AddressingMode::IndirectIndexed, 5, true},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::DCP, AddressingMode::IndirectIndexed, 8, false},
+        {Opcode::NOP, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::CMP, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::DEC, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::DCP, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::CLD, AddressingMode::Implied, 2, false},
+        {Opcode::CMP, AddressingMode::AbsoluteIndexedY, 4, true},
+        {Opcode::NOP, AddressingMode::Implied, 2, false},
+        {Opcode::DCP, AddressingMode::AbsoluteIndexedY, 7, false},
+        {Opcode::NOP, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::CMP, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::DEC, AddressingMode::AbsoluteIndexedX, 7, false},
+        {Opcode::DCP, AddressingMode::AbsoluteIndexedX, 7, false},
+        {Opcode::CPX, AddressingMode::Immediate, 2, false},
+        {Opcode::SBC, AddressingMode::IndexedIndirect, 6, false},
+        {Opcode::NOP, AddressingMode::Immediate, 2, false},
+        {Opcode::ISB, AddressingMode::IndexedIndirect, 8, false},
+        {Opcode::CPX, AddressingMode::ZeroPage, 3, false},
+        {Opcode::SBC, AddressingMode::ZeroPage, 3, false},
+        {Opcode::INC, AddressingMode::ZeroPage, 5, false},
+        {Opcode::ISB, AddressingMode::ZeroPage, 5, false},
+        {Opcode::INX, AddressingMode::Implied, 2, false},
+        {Opcode::SBC, AddressingMode::Immediate, 2, false},
+        {Opcode::NOP, AddressingMode::Implied, 2, false},
+        {Opcode::SBC, AddressingMode::Immediate, 2, false},
+        {Opcode::CPX, AddressingMode::Absolute, 4, false},
+        {Opcode::SBC, AddressingMode::Absolute, 4, false},
+        {Opcode::INC, AddressingMode::Absolute, 6, false},
+        {Opcode::ISB, AddressingMode::Absolute, 6, false},
+        {Opcode::BEQ, AddressingMode::Relative, 2, true},
+        {Opcode::SBC, AddressingMode::IndirectIndexed, 5, true},
+        {Opcode::STP, AddressingMode::Implied, 2, false},
+        {Opcode::ISB, AddressingMode::IndirectIndexed, 8, false},
+        {Opcode::NOP, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::SBC, AddressingMode::ZeroPageIndexedX, 4, false},
+        {Opcode::INC, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::ISB, AddressingMode::ZeroPageIndexedX, 6, false},
+        {Opcode::SED, AddressingMode::Implied, 2, false},
+        {Opcode::SBC, AddressingMode::AbsoluteIndexedY, 4, true},
+        {Opcode::NOP, AddressingMode::Implied, 2, false},
+        {Opcode::ISB, AddressingMode::AbsoluteIndexedY, 7, false},
+        {Opcode::NOP, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::SBC, AddressingMode::AbsoluteIndexedX, 4, true},
+        {Opcode::INC, AddressingMode::AbsoluteIndexedX, 7, false},
+        {Opcode::ISB, AddressingMode::AbsoluteIndexedX, 7, false},
 };
 // clang-format on
 
@@ -287,7 +287,7 @@ uint8_t CPU::step() {
     Address indirect   = 0;
     Byte offset        = 0;
 
-    numCycles++;
+    numCycles          = decoded.MinCycles;
     this->pc++;
 
     switch (decoded.addressingMode) {
@@ -298,24 +298,22 @@ uint8_t CPU::step() {
         case AddressingMode::Absolute:
             address = this->readAddress(this->pc);
             this->pc += 2;
-            numCycles += 2; // read + read
             break;
         case AddressingMode::Immediate:
             address = this->pc;
             this->pc++;
-            numCycles += 0; // address already known
             break;
         case AddressingMode::AbsoluteIndexedX:
             indirect = this->readAddress(this->pc);
             address  = indirect + this->regX;
             this->pc += 2;
-            numCycles += 2; // read + read + add
+            numCycles += decoded.PageBoundaryHit && crossesPageBoundary(indirect, address);
             break;
         case AddressingMode::AbsoluteIndexedY:
             indirect = this->readAddress(this->pc);
             address  = indirect + this->regY;
             this->pc += 2;
-            numCycles += 2; // read + read + add
+            numCycles += decoded.PageBoundaryHit && crossesPageBoundary(indirect, address);
             break;
         case AddressingMode::IndexedIndirect:
             // val = PEEK(PEEK((arg + X) % 256) + PEEK((arg + X + 1) % 256) * 256)
@@ -325,13 +323,11 @@ uint8_t CPU::step() {
             indirect = Byte(offset + regX);
             address  = this->readAddressIndirectWraparound(indirect);
             this->pc += 1;
-            numCycles += 4; // read + add
             break;
         case AddressingMode::Indirect:
             indirect = this->readAddress(this->pc);
             address  = this->readAddressIndirectWraparound(indirect);
             this->pc += 2;
-            numCycles += 2;
             break;
         case AddressingMode::IndirectIndexed:
             // val = PEEK(PEEK(arg) + PEEK((arg + 1) % 256) * 256 + Y)
@@ -339,13 +335,12 @@ uint8_t CPU::step() {
             indirect = this->readAddressIndirectWraparound(offset);
             address  = indirect + this->regY;
             this->pc += 1;
-            numCycles += 3; // read + read + read + add
+            numCycles += decoded.PageBoundaryHit && crossesPageBoundary(indirect, address);
             break;
         case AddressingMode::Relative:
             // TODO: check that this handles negative offsets correctly
             offset = this->read(this->pc);
             this->pc++;
-            numCycles++;
 
             if (offset & 0x80)
                 address = this->pc - Address(0x100 - offset);
@@ -356,35 +351,30 @@ uint8_t CPU::step() {
             offset  = this->read(this->pc);
             address = offset;
             this->pc++;
-            numCycles++;
             break;
         case AddressingMode::ZeroPageIndexedX:
             offset  = this->read(this->pc);
             address = Byte(offset + this->regX);
-            numCycles++;
             this->pc++;
             break;
         case AddressingMode::ZeroPageIndexedY:
             offset  = this->read(this->pc);
             address = Byte(offset + this->regY);
-            numCycles++;
             this->pc++;
             break;
-    };
+    }
 
     auto nextPC = this->pc;
 
 
     if (DBG_PRINT) {
         // debug buffer, more than enough to include everything
-        // C000  4C F5 C5  JMP $C5F5                       A:00 X:00 Y:00 P:24 SP:FD
-        char buf[80]    = "";
+        // C000  4C F5 C5  JMP $C5F5                       A:00 X:00 Y:00 P:24 SP:FD CYC:7
+        char buf[120]   = "";
         char *remaining = buf;
         remaining += sprintf(remaining, "%04X  ", prePC);
 
         // print each byte in the instFirstByte
-        uint8_t width = this->pc - prePC;
-
         for (auto addr = prePC; addr < prePC + 3; addr++) {
             if (addr < nextPC) {
                 auto instrByte = this->read(addr);
@@ -469,11 +459,11 @@ uint8_t CPU::step() {
         }
 
         // registers
-        remaining += sprintf(remaining, "A:%02X X:%02X Y:%02X P:%02X SP:%02X", this->regA, this->regX, this->regY,
-                             uint8_t(this->status.to_ulong()), this->regSP);
+        remaining += sprintf(remaining, "A:%02X X:%02X Y:%02X P:%02X SP:%02X CYC:%d", this->regA, this->regX,
+                             this->regY, uint8_t(this->status.to_ulong()), this->regSP, int(this->cycle));
 
         (void) remaining;
-        std::cout << buf << std::endl;
+        std::cout << std::endl << buf;
     }
 
 
@@ -482,9 +472,9 @@ uint8_t CPU::step() {
     numCycles += this->dispatch(decoded, address);
 
     // every instFirstByte should be at least two cycles
-    numCycles += numCycles < 2;
     this->cycle += numCycles;
     //    printf("%04x %s %d\n", prePC, OpcodeStrings[uint8_t(decoded.opcode)], numCycles);
+
     return numCycles;
 }
 
@@ -514,8 +504,7 @@ uint8_t CPU::op<Opcode::ADC>(AddressingMode mode, Address addr) {
     this->status[Flag::V] = (a ^ sum) & (b ^ sum) & 0x80;
     this->setCNZ(sum);
 
-    // read (no ALU hit apparently)
-    return 1;
+    return 0;
 }
 
 // http://www.oxyron.de/html/opcodes02.html
@@ -542,8 +531,7 @@ template<>
 uint8_t CPU::op<Opcode::AND>(AddressingMode, Address addr) {
     this->regA &= this->read(addr);
     this->setNZ(this->regA);
-    // read + ALU
-    return 2;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ARR
@@ -556,7 +544,6 @@ uint8_t CPU::op<Opcode::ARR>(AddressingMode mode, Address addr) {
 template<>
 uint8_t CPU::op<Opcode::ASL>(AddressingMode mode, Address addr) {
     WordWithCarry resultWide = 0;
-    uint8_t numCycles        = 2;
 
     if (mode == AddressingMode::Accumulator) {
         resultWide = WordWithCarry(this->regA) << 1;
@@ -564,11 +551,10 @@ uint8_t CPU::op<Opcode::ASL>(AddressingMode mode, Address addr) {
     } else {
         resultWide = WordWithCarry(this->read(addr)) << 1;
         this->write(addr, Byte(resultWide));
-        numCycles += 2;
     }
 
     this->setCNZ(resultWide);
-    return numCycles;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#AXS
@@ -579,14 +565,13 @@ uint8_t CPU::op<Opcode::AXS>(AddressingMode mode, Address addr) {
 
 
 uint8_t CPU::BXX(Flag flag, bool isSet, Address addr) {
-    uint8_t numCycles = 0;
-
     if (this->status[flag] == isSet) {
-        numCycles = 1 + crossesPageBoundary(this->pc, addr);
-        this->pc  = addr;
+        auto cycleHits = 1 + crossesPageBoundary(this->pc, addr);
+        this->pc       = addr;
+        return cycleHits;
     }
 
-    return numCycles;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BCC
@@ -615,8 +600,7 @@ uint8_t CPU::op<Opcode::BIT>(AddressingMode, Address addr) {
     this->status[Flag::Z] = (result == 0);
     this->status[Flag::V] = (m & 0x40) != 0;
     this->status[Flag::N] = (m & 0x80) != 0;
-    // read
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BMI
@@ -654,10 +638,9 @@ uint8_t CPU::op<Opcode::BRK>(AddressingMode, Address) {
 
     this->pushAddress(this->pc);
     this->push(Byte(this->status.to_ulong()));
-
     this->readAddress(0xfffe);
 
-    return 7;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BVC
@@ -708,7 +691,7 @@ uint8_t CPU::op<Opcode::CMP>(AddressingMode mode, Address addr) {
     auto data = a - m;
     this->setNZ(data);
     this->status[Flag::C] = a >= m;
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#CPX
@@ -719,7 +702,7 @@ uint8_t CPU::op<Opcode::CPX>(AddressingMode mode, Address addr) {
     this->setNZ(x - m);
     this->status[Flag::C] = x >= m;
     // read
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#CPY
@@ -730,8 +713,7 @@ uint8_t CPU::op<Opcode::CPY>(AddressingMode mode, Address addr) {
     auto data = y - m;
     this->setNZ(data);
     this->status[Flag::C] = y >= m;
-    // read
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#DEC
@@ -740,8 +722,7 @@ uint8_t CPU::op<Opcode::DEC>(AddressingMode, Address addr) {
     auto m = this->read(addr) - 1;
     this->write(addr, m);
     this->setNZ(m);
-    // read + alu + write
-    return 3;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#DCP
@@ -757,8 +738,7 @@ template<>
 uint8_t CPU::op<Opcode::DEX>(AddressingMode, Address) {
     this->regX--;
     this->setNZ(this->regX);
-    // ALU
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#DEY
@@ -766,8 +746,7 @@ template<>
 uint8_t CPU::op<Opcode::DEY>(AddressingMode, Address) {
     this->regY--;
     this->setNZ(this->regY);
-    // ALU
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#EOR
@@ -775,8 +754,7 @@ template<>
 uint8_t CPU::op<Opcode::EOR>(AddressingMode, Address addr) {
     this->regA ^= this->read(addr);
     this->setNZ(this->regA);
-    // read
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#INC
@@ -785,7 +763,7 @@ uint8_t CPU::op<Opcode::INC>(AddressingMode, Address addr) {
     auto data = this->read(addr) + 1;
     this->write(addr, data);
     this->setNZ(data);
-    return 2;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#INX
@@ -793,8 +771,7 @@ template<>
 uint8_t CPU::op<Opcode::INX>(AddressingMode, Address) {
     this->regX++;
     this->setNZ(this->regX);
-    // 2 frame minimum, already counted one
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#INY
@@ -802,8 +779,7 @@ template<>
 uint8_t CPU::op<Opcode::INY>(AddressingMode, Address) {
     this->regY++;
     this->setNZ(this->regY);
-    // 2 frame minimum, already counted one
-    return 1;
+    return 0;
 }
 
 
@@ -811,7 +787,7 @@ uint8_t CPU::op<Opcode::INY>(AddressingMode, Address) {
 template<>
 uint8_t CPU::op<Opcode::JMP>(AddressingMode, Address addr) {
     this->pc = addr;
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#JSR
@@ -819,7 +795,7 @@ template<>
 uint8_t CPU::op<Opcode::JSR>(AddressingMode, Address addr) {
     this->pushAddress(this->pc - 1);
     this->pc = addr;
-    return 3;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#LAS
@@ -833,7 +809,7 @@ template<>
 uint8_t CPU::op<Opcode::LAX>(AddressingMode mode, Address addr) {
     this->regA = this->regX = this->read(addr);
     this->setNZ(this->regA);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#LDA
@@ -841,7 +817,7 @@ template<>
 uint8_t CPU::op<Opcode::LDA>(AddressingMode mode, Address addr) {
     this->regA = this->read(addr);
     this->setNZ(this->regA);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#LDX
@@ -849,7 +825,7 @@ template<>
 uint8_t CPU::op<Opcode::LDX>(AddressingMode mode, Address addr) {
     this->regX = this->read(addr);
     this->setNZ(this->regX);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#LDY
@@ -857,14 +833,13 @@ template<>
 uint8_t CPU::op<Opcode::LDY>(AddressingMode mode, Address addr) {
     this->regY = this->read(addr);
     this->setNZ(this->regY);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#LSR
 template<>
 uint8_t CPU::op<Opcode::LSR>(AddressingMode mode, Address addr) {
     WordWithCarry wideData;
-    uint8_t numCycles = 0;
 
     if (mode == AddressingMode::Accumulator) {
         wideData   = WordWithCarry(this->regA);
@@ -874,20 +849,16 @@ uint8_t CPU::op<Opcode::LSR>(AddressingMode mode, Address addr) {
         wideData = WordWithCarry(this->read(addr));
         wideData = wideData >> 1 | (wideData & 0x01) << 8;
         this->write(addr, Byte(wideData));
-        numCycles += 2;
     }
 
-    // ALU
-    numCycles++;
     this->setCNZ(wideData);
-    return numCycles;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#NOP
 template<>
 uint8_t CPU::op<Opcode::NOP>(AddressingMode, Address) {
-    // two frame minimum
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ORA
@@ -895,14 +866,14 @@ template<>
 uint8_t CPU::op<Opcode::ORA>(AddressingMode, Address addr) {
     this->regA |= this->read(addr);
     this->setNZ(this->regA);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#PHA
 template<>
 uint8_t CPU::op<Opcode::PHA>(AddressingMode, Address) {
     this->push(this->regA);
-    return 2;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#PHP
@@ -914,7 +885,7 @@ uint8_t CPU::op<Opcode::PHP>(AddressingMode, Address) {
     statusCopy[Flag::B] = true;
 
     this->push(statusCopy.to_ulong());
-    return 2;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#PLA
@@ -922,7 +893,7 @@ template<>
 uint8_t CPU::op<Opcode::PLA>(AddressingMode, Address) {
     this->regA = this->pop();
     this->setNZ(regA);
-    return 3;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#PLP
@@ -935,14 +906,13 @@ uint8_t CPU::op<Opcode::PLP>(AddressingMode, Address) {
     this->status          = this->pop();
     this->status[Flag::U] = prevStatus[Flag::U];
     this->status[Flag::B] = prevStatus[Flag::B];
-    return 3;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ROL
 template<>
 uint8_t CPU::op<Opcode::ROL>(AddressingMode mode, Address addr) {
     WordWithCarry wideData;
-    uint8_t numCycles = 0;
 
     if (mode == AddressingMode::Accumulator) {
         wideData   = WordWithCarry(this->regA);
@@ -952,20 +922,16 @@ uint8_t CPU::op<Opcode::ROL>(AddressingMode mode, Address addr) {
         wideData = WordWithCarry(this->read(addr));
         wideData = wideData << 1 | this->status[Flag::C];
         this->write(addr, Byte(wideData));
-        numCycles += 2;
     }
 
-    // ALU
-    numCycles++;
     this->setCNZ(wideData);
-    return numCycles;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ROR
 template<>
 uint8_t CPU::op<Opcode::ROR>(AddressingMode mode, Address addr) {
     WordWithCarry wideData;
-    uint8_t numCycles = 0;
 
     // Bit 7 is filled with the current value of the carry flag whilst the
     // old bit 0 becomes the new carry flag value.
@@ -982,13 +948,10 @@ uint8_t CPU::op<Opcode::ROR>(AddressingMode mode, Address addr) {
         wideData |= (wideData & 0x1) << 9;
         wideData >>= 1;
         this->write(addr, Byte(wideData));
-        numCycles += 2;
     }
 
-    // ALU
-    numCycles++;
     this->setCNZ(wideData);
-    return numCycles;
+    return 0;
 }
 
 // http://www.oxyron.de/html/opcodes02.html
@@ -1012,21 +975,21 @@ uint8_t CPU::op<Opcode::RTI>(AddressingMode, Address) {
     this->status[Flag::B] = prevStatus[Flag::B];
 
     this->pc              = this->popAddress();
-    return 5;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#RTS
 template<>
 uint8_t CPU::op<Opcode::RTS>(AddressingMode, Address) {
     this->pc = this->popAddress() + 1;
-    return 5;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SAX
 template<>
 uint8_t CPU::op<Opcode::SAX>(AddressingMode mode, Address addr) {
     this->write(addr, this->regA & this->regX);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SBC
@@ -1043,29 +1006,28 @@ uint8_t CPU::op<Opcode::SBC>(AddressingMode mode, Address addr) {
     this->status[Flag::V] = (a ^ result) & (~m ^ result) & 0x80;
     this->status[Flag::C] = !(result & 0x100);
 
-    // read (no ALU hit apparently)
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SEC
 template<>
 uint8_t CPU::op<Opcode::SEC>(AddressingMode mode, Address addr) {
     this->status[Flag::C] = 1;
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SED
 template<>
 uint8_t CPU::op<Opcode::SED>(AddressingMode, Address) {
     this->status[Flag::D] = 1;
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SEI
 template<>
 uint8_t CPU::op<Opcode::SEI>(AddressingMode, Address) {
     this->status[Flag::I] = 1;
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#SHX
@@ -1100,7 +1062,7 @@ uint8_t CPU::op<Opcode::SRE>(AddressingMode mode, Address addr) {
 template<>
 uint8_t CPU::op<Opcode::STA>(AddressingMode, Address addr) {
     this->write(addr, this->regA);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#STP
@@ -1108,21 +1070,21 @@ template<>
 uint8_t CPU::op<Opcode::STP>(AddressingMode, Address addr) {
     // TODO: check if this was a good guess
     this->write(addr, this->status.to_ulong());
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#STX
 template<>
 uint8_t CPU::op<Opcode::STX>(AddressingMode, Address addr) {
     this->write(addr, this->regX);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#STY
 template<>
 uint8_t CPU::op<Opcode::STY>(AddressingMode, Address addr) {
     this->write(addr, this->regY);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#TAS
@@ -1136,7 +1098,7 @@ template<>
 uint8_t CPU::op<Opcode::TAX>(AddressingMode mode, Address addr) {
     this->regX = this->regA;
     this->setNZ(this->regX);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#TAY
@@ -1144,7 +1106,7 @@ template<>
 uint8_t CPU::op<Opcode::TAY>(AddressingMode mode, Address addr) {
     this->regY = this->regA;
     this->setNZ(this->regY);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#TSX
@@ -1152,7 +1114,7 @@ template<>
 uint8_t CPU::op<Opcode::TSX>(AddressingMode mode, Address addr) {
     this->regX = this->regSP;
     this->setNZ(this->regX);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#TXA
@@ -1160,14 +1122,14 @@ template<>
 uint8_t CPU::op<Opcode::TXA>(AddressingMode mode, Address addr) {
     this->regA = this->regX;
     this->setNZ(this->regA);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#TXS
 template<>
 uint8_t CPU::op<Opcode::TXS>(AddressingMode mode, Address addr) {
     this->regSP = this->regX;
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#TYA
@@ -1175,7 +1137,7 @@ template<>
 uint8_t CPU::op<Opcode::TYA>(AddressingMode mode, Address addr) {
     this->regA = this->regY;
     this->setNZ(this->regA);
-    return 1;
+    return 0;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#XAA
@@ -1489,7 +1451,7 @@ void CPU::reset() {
     this->regY            = 0;
     this->regSP           = 0xfd;
     this->status          = 0;
-    this->cycle           = 0;
+    this->cycle           = 7;
 
     this->status[Flag::U] = true;
     this->status[Flag::I] = true;

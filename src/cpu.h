@@ -42,8 +42,10 @@ static const char *OpcodeStrings[256]{
 };
 
 struct DecodedInstruction {
-    Opcode opcode;
-    AddressingMode addressingMode;
+    Opcode opcode                 : 7;
+    AddressingMode addressingMode : 4;
+    uint8_t MinCycles             : 5;
+    bool PageBoundaryHit          : 1;
 };
 
 
@@ -65,7 +67,7 @@ class CPU {
 
 private:
     Console &console;
-    std::array<Byte, 0x800> ram;
+    std::array<Byte, 0x800> ram = {0};
     Byte regA, regX, regY, regSP;
     Address pc;
     Status status;
