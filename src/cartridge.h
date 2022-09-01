@@ -5,10 +5,11 @@ namespace nes {
 
 struct Cartridge {
     enum class MirroringMode {
-        Horizontal   = 0,
-        Vertical     = 1,
-        SingleScreen = 2,
-        FourScreen   = 3,
+        Horizontal            = 0,
+        Vertical              = 1,
+        SingleScreenLowerBank = 2,
+        FourScreen            = 3,
+        SingleScreenUpperBank = 2,
     };
 
     std::vector<Byte> prgROM; // multiple of 16 KiB
@@ -23,6 +24,7 @@ using PCartridge = std::unique_ptr<Cartridge>;
 
 enum class MapperType : uint16_t {
     INESMapper000 = 0,
+    INESMapper001 = 1,
     INESMapper002 = 2,
 };
 

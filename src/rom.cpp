@@ -150,9 +150,7 @@ std::unique_ptr<Mapper> LoadRomFile(const std::string &path) {
     }
 
     // read prgRAM
-    cartridge->prgRAM.resize(hdr.ines.prgRamSize);
-    romFile.read(reinterpret_cast<char *>(cartridge->prgRAM.data()), cartridge->prgRAM.size());
-
+    cartridge->prgRAM.resize(size_t(hdr.ines.prgRamSize ? hdr.ines.prgRamSize : 1) << 13);
 
     return Mapper::Create(MapperType(hdr.ines.mapperHi << 4 | hdr.ines.mapperLo), std::move(cartridge));
 }

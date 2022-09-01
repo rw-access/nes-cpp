@@ -75,9 +75,9 @@ Byte PPU::readRegister(Address addr) {
         case 1: // PPUCTRL: $2001
             return this->status.raw;
         case 2: // PPUSTATUS: $2002
-            contents              = this->status.raw;
-            this->writeToggle     = 0;
-            this->status.inVBlank = false;
+            contents                 = this->status.raw;
+            this->writeToggle        = 0;
+            this->status.nmiOccurred = false;
             return contents;
         case 4: // OAMDATA: $2004
             return this->oam[this->oamAddr];
@@ -97,6 +97,12 @@ void PPU::writeRegister(Address addr, Byte data) {
         case 0: // PPUCTRL: $2000
             // t: ...GH.. ........ <- d: ......GH
             //    <used elsewhere> <- d: ABCDEF..
+
+            // detect if in vblank and a positive edge on enableNMI, then send interrupt
+            // https://www.nesdev.org/wiki/NMI
+            if (this->inVBlank && !this->ppuCtrl.enableNMI && (PPUCTRL{.raw = data}).enableNMI)
+                this->console.cpu->interrupt(Interrupt::NMI);
+
             this->ppuCtrl.raw                  = data & ~0x3;
             this->tempVramAddr.nameTableSelect = data & 0x3;
             break;
@@ -124,7 +130,6 @@ void PPU::writeRegister(Address addr, Byte data) {
                 this->tempVramAddr.fineY   = data << 5;
                 this->tempVramAddr.coarseY = data >> 3;
             }
-
             this->writeToggle = !this->writeToggle;
             break;
         case 6: // PPUADDR: $2006
@@ -158,7 +163,7 @@ void PPU::writeRegister(Address addr, Byte data) {
 static const uint8_t nameTableMirrorings[][4] = {
         {0, 0, 1, 1}, // Cartridge::MirroringMode::Horizontal   = 0
         {0, 0, 1, 1}, // Cartridge::MirroringMode::Vertical     = 1
-        {0, 0, 0, 0}, // Cartridge::MirroringMode::SingleScreen = 3
+        {0, 0, 0, 0}, // Cartridge::MirroringMode::SingleScreenLowerBank = 3
         {0, 1, 2, 3}, // Cartridge::MirroringMode::FourScreen   = 4
 };
 
@@ -265,15 +270,15 @@ void PPU::fetchTile() {
 
 
 void PPU::stepPreRender() {
-    if (!this->ppuMask.showBackground && !this->ppuMask.showSprites)
-        return;
-
     // Pre-render scanline (-1 or 261)
     if (this->cycleInScanLine == 1) {
         this->status.spriteZeroHit = false;
-        this->status.spriteZeroHit = false;
-        this->status.inVBlank      = false;
+        this->status.nmiOccurred   = false;
+        this->inVBlank             = false;
     }
+
+    if (!this->ppuMask.showBackground && !this->ppuMask.showSprites)
+        return;
 
     if (this->cycleInScanLine == 0) {
         // idle
@@ -319,9 +324,10 @@ void PPU::stepPostRender() {
 
 void PPU::stepVBlank() {
     if (this->scanLine == 241 && this->cycleInScanLine == 1) {
-        this->status.inVBlank = true;
+        this->inVBlank           = true;
+        this->status.nmiOccurred = true;
 
-        if (this->ppuCtrl.nmiOn)
+        if (this->ppuCtrl.enableNMI)
             this->console.cpu->interrupt(Interrupt::NMI);
     }
 }

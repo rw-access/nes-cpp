@@ -25,7 +25,7 @@ union PPUCTRL {
         Byte backgroundPatternTableAddress : 1;
         Byte spriteSize                    : 1;
         bool ppuMasterSelect               : 1;
-        bool nmiOn                         : 1;
+        bool enableNMI                     : 1;
     };
     struct {
         Byte add256X : 1;
@@ -53,7 +53,7 @@ union PPUSTATUS {
         Byte PPUOpenBus     : 5;
         bool spriteOverflow : 1;
         bool spriteZeroHit  : 1;
-        bool inVBlank       : 1;
+        bool nmiOccurred    : 1;
     };
     Byte raw;
 };
@@ -137,7 +137,6 @@ private:
     std::array<Byte, 8> secondaryOam  = {0}; // up to 8 sprites on the current line
     std::array<Byte, 32> paletteRam   = {0};
     std::array<Byte, 2048> nametables = {0};
-    bool unprocessedNMI               = false;
     TileData pendingTile, processedTile;
     Screen screenBuffers[2];
 
@@ -146,6 +145,7 @@ private:
     VRAMAddress tempVramAddr = {.raw = 0};
     uint8_t fineXScroll : 3  = 0;
     bool writeToggle         = 0;
+    bool inVBlank            = false;
 
     Byte read(Address addr) const;
     void write(Address addr, Byte data);
