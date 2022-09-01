@@ -4,10 +4,10 @@
 #include <iostream>
 #include <string_view>
 
-#define DBG_PRINT 0
 
 namespace nes {
 
+static bool DBG_PRINT = false;
 
 // clang-format off
 static const DecodedInstruction decodeTable[256]{
@@ -1423,17 +1423,14 @@ void CPU::write(Address addr, Byte data) {
         this->console.ppu->writeRegister(0x2000 | (addr & 0x7), data);
     else if (addr == 0x4016)
         return this->console.controller.Write(data);
-
     else if (addr < 0x4018)
         // return &this->apu[addr - 0x4000];
         return;
-
     else if (addr < 0x401f)
         // only enabled for CPU test mode
         return;
-
     else
-        return;
+        this->console.mapper->Write(addr, data);
 }
 
 Address CPU::readAddress(Address addr) const {

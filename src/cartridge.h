@@ -15,6 +15,7 @@ struct Cartridge {
     std::vector<Byte> chrROM; // multiple of 8 KiB
     std::vector<Byte> instROM;
     std::vector<Byte> prgRAM; // multiple of 8 KiB
+    std::vector<Byte> sRAM;
     MirroringMode mirroringMode;
 };
 
@@ -22,6 +23,7 @@ using PCartridge = std::unique_ptr<Cartridge>;
 
 enum class MapperType : uint16_t {
     INESMapper000 = 0,
+    INESMapper002 = 2,
 };
 
 class Mapper {
@@ -30,14 +32,12 @@ public:
 
 public:
     Mapper(PCartridge &&c);
-    virtual ~Mapper() = default;
+    virtual ~Mapper()                           = default;
 
-    Byte Read(Address addr) const;
-    void Write(Address addr, Byte data);
+    virtual Byte Read(Address addr) const       = 0;
+    virtual void Write(Address addr, Byte data) = 0;
 
     static std::unique_ptr<Mapper> Create(MapperType mapperType, PCartridge &&cart);
-    // Subclasses all need to implement decodeAddress to decode an address to the target location
-    virtual const Byte *decodeAddress(Address addr) const = 0;
 };
 
 }; // namespace nes

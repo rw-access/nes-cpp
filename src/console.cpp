@@ -34,18 +34,23 @@ void Console::StepFrame() {
 }
 
 
-void Console::DrawFrame(SDL_Surface *surface) const {
+void Console::DrawFrame(SDL_Surface *surface, uint8_t scaling) const {
     auto pixels     = static_cast<uint32_t *>(surface->pixels);
     auto format     = surface->format;
     auto &screen    = this->ppu->completedScreen();
 
     auto pixelIndex = 0;
     for (auto y = 0; y < this->ppu->SCREEN_HEIGHT; y++) {
-        for (auto x = 0; x < this->ppu->SCREEN_WIDTH; x++, pixelIndex++) {
+        for (auto x = 0; x < this->ppu->SCREEN_WIDTH; x++) {
             auto pixelRGBA = screen[y][x];
 
-            pixels[pixelIndex] =
-                    SDL_MapRGBA(format, uint8_t(pixelRGBA >> 16), uint8_t(pixelRGBA >> 8), uint8_t(pixelRGBA), 0xff);
+            for (int drawY = y * scaling; drawY < (y + 1) * scaling; drawY++) {
+                for (int drawX = x * scaling; drawX < (x + 1) * scaling; drawX++) {
+                    auto pixelIndex = drawY * this->ppu->SCREEN_WIDTH * scaling + drawX;
+                    pixels[pixelIndex] =
+                            SDL_MapRGBA(format, uint8_t(pixelRGBA >> 16), uint8_t(pixelRGBA >> 8), uint8_t(pixelRGBA), 0xff);
+                }
+            }
         }
     }
 }

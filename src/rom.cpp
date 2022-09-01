@@ -141,8 +141,13 @@ std::unique_ptr<Mapper> LoadRomFile(const std::string &path) {
     romFile.read(reinterpret_cast<char *>(cartridge->prgROM.data()), cartridge->prgROM.size());
 
     // read CHR ROM
-    cartridge->chrROM.resize(hdr.ines.chrRomSize * 8192);
-    romFile.read(reinterpret_cast<char *>(cartridge->chrROM.data()), cartridge->chrROM.size());
+    if (hdr.ines.chrRomSize > 0) {
+        cartridge->chrROM.resize(hdr.ines.chrRomSize * 8192);
+        romFile.read(reinterpret_cast<char *>(cartridge->chrROM.data()), cartridge->chrROM.size());
+    } else {
+        // uses CHR RAM
+        cartridge->chrROM.resize(8192);
+    }
 
     // read prgRAM
     cartridge->prgRAM.resize(hdr.ines.prgRamSize);

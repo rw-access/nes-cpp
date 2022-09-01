@@ -91,21 +91,20 @@ int drawTiles() {
     return 0;
 }
 
-int runRom() {
-
-    const char game[] = "tests/roms/nestest.nes";
-    auto mapper       = nes::LoadRomFile(game);
+int runRom(std::string romPath) {
+    auto mapper = nes::LoadRomFile(romPath);
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cout << "could not initialize sdl2" << SDL_GetError();
         return 1;
     }
 
-    auto console = nes::Console::Create(std::move(mapper));
+    auto console           = nes::Console::Create(std::move(mapper));
+    static uint8_t scaling = 2;
 
     std::unique_ptr<SDL_Window, std::function<void(SDL_Window *)>> window(
-            SDL_CreateWindow("nes", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, nes::PPU::SCREEN_WIDTH,
-                             nes::PPU::SCREEN_HEIGHT, SDL_WINDOW_SHOWN),
+            SDL_CreateWindow("nes", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 2 * nes::PPU::SCREEN_WIDTH,
+                             2 * nes::PPU::SCREEN_HEIGHT, SDL_WINDOW_SHOWN),
             SDL_DestroyWindow);
 
     if (window == nullptr) {
@@ -119,12 +118,6 @@ int runRom() {
         return 3;
     }
 
-
-    // draw 10 frames, which is enough to tell that it works
-    for (auto f = 0; f < 10; f++) {
-    }
-
-
     SDL_Event e;
     bool quit = false;
 
@@ -136,7 +129,7 @@ int runRom() {
 
     while (!quit) {
         console->StepFrame();
-        console->DrawFrame(screenSurface);
+        console->DrawFrame(screenSurface, scaling);
 
         if (SDL_UpdateWindowSurface(window.get()) < 0) {
             std::cout << "could not update window" << SDL_GetError();
@@ -167,8 +160,13 @@ int runRom() {
     return 0;
 }
 
-int main() {
+int main(int argc, char *argv[]) {
     //    drawTiles();
-    runRom();
+    if (argc != 2) {
+        printf("usage: %s <rom file>\n", argv[0]);
+        return 1;
+    }
+
+    runRom(argv[1]);
     return 0;
 }

@@ -147,7 +147,6 @@ private:
     uint8_t fineXScroll : 3  = 0;
     bool writeToggle         = 0;
 
-    const Byte *decodeAddress(Address addr) const;
     Byte read(Address addr) const;
     void write(Address addr, Byte data);
 

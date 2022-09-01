@@ -32,7 +32,7 @@ public:
 
     void StepFrame();
 
-    void DrawFrame(SDL_Surface *surface) const;
+    void DrawFrame(SDL_Surface *surface, uint8_t scaling) const;
 
     void SetButton(Buttons button, bool status);
 };
