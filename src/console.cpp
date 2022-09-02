@@ -24,7 +24,7 @@ void Console::StepFrame() {
     uint64_t prevFrame = this->ppu->currentFrame();
 
     while (prevFrame == this->ppu->currentFrame()) {
-        uint8_t numCycles = this->cpu->step();
+        auto numCycles = this->cpu->step();
         for (auto cycle = 0; cycle < numCycles; cycle++) {
             this->ppu->step();
             this->ppu->step();
@@ -46,9 +46,9 @@ void Console::DrawFrame(SDL_Surface *surface, uint8_t scaling) const {
 
             for (int drawY = y * scaling; drawY < (y + 1) * scaling; drawY++) {
                 for (int drawX = x * scaling; drawX < (x + 1) * scaling; drawX++) {
-                    auto pixelIndex = drawY * this->ppu->SCREEN_WIDTH * scaling + drawX;
-                    pixels[pixelIndex] =
-                            SDL_MapRGBA(format, uint8_t(pixelRGBA >> 16), uint8_t(pixelRGBA >> 8), uint8_t(pixelRGBA), 0xff);
+                    auto pixelIndex    = drawY * this->ppu->SCREEN_WIDTH * scaling + drawX;
+                    pixels[pixelIndex] = SDL_MapRGBA(format, uint8_t(pixelRGBA >> 16), uint8_t(pixelRGBA >> 8),
+                                                     uint8_t(pixelRGBA), 0xff);
                 }
             }
         }

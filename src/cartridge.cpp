@@ -17,6 +17,19 @@ public:
         this->secondBankStart = (this->cartridge->prgROM.size() - 1) & ~0x3fff;
     }
 
+    const Byte *DMAStart(nes::Address addr) const override {
+        if (addr < 0x2000)
+            return &this->cartridge->chrROM[addr % 0x2000];
+        else if (addr < 0x8000)
+            return nullptr;
+        else if (addr < 0xC000)
+            // CPU $8000-$BFFF: 16 KB switchable PRG ROM bank
+            return &this->cartridge->prgROM[this->secondBankStart | (addr % 0x4000)];
+        else
+            // CPU $C000-$FFFF: 16 KB PRG ROM bank, fixed to the last bank
+            return &this->cartridge->prgROM[this->firstBankStart | (addr % 0x4000)];
+    }
+
     Byte Read(nes::Address addr) const override {
         if (addr < 0x2000)
             return this->cartridge->chrROM[addr % 0x2000];
@@ -144,6 +157,27 @@ public:
         this->secondProgOffset = (this->cartridge->prgROM.size() - 1) & ~0x3fff;
     }
 
+    const Byte *DMAStart(nes::Address addr) const override {
+        if (addr < 0x1000)
+            return &this->cartridge->chrROM[this->firstCHROffset | (addr & 0xfff)];
+        else if (addr < 0x2000)
+            return &this->cartridge->chrROM[this->secondProgOffset | (addr & 0xfff)];
+        else if (addr < 0x6000)
+            return nullptr;
+        else if (addr < 0x8000)
+            // CPU $6000-$7FFF: 8 KB PRG RAM bank, (optional)
+            if (!this->cartridge->prgRAM.empty())
+                return &this->cartridge->prgRAM[addr];
+            else
+                return nullptr;
+        else if (addr < 0xC000)
+            // CPU $8000-$BFFF: 16 KB PRG ROM bank, either switchable or fixed to the first bank
+            return &this->cartridge->prgROM[this->firstProgOffset | (addr % 0x4000)];
+        else
+            // CPU $C000-$FFFF: 16 KB PRG ROM bank, either fixed to the last bank or switchable
+            return &this->cartridge->prgROM[this->secondProgOffset | (addr % 0x4000)];
+    }
+
     Byte Read(nes::Address addr) const override {
         if (addr < 0x1000)
             return this->cartridge->chrROM[this->firstCHROffset | (addr & 0xfff)];
@@ -203,7 +237,7 @@ public:
 };
 
 
-std::unique_ptr<Mapper> Mapper::Create(nes::MapperType mapperType, nes::PCartridge &&cart) {
+std::unique_ptr<Mapper> Mapper::Create(MapperType mapperType, PCartridge &&cart) {
     switch (mapperType) {
         case MapperType::INESMapper000:
             return std::make_unique<NROM>(std::move(cart));

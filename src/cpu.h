@@ -76,22 +76,22 @@ private:
 
     // TODO: consider make an opcode-based jump table of 256 entries for more specialized code,
     //   that can optimize inlining of functions because the addressing node is known at compile time
-    uint8_t dispatch(const DecodedInstruction &decodedInstruction, Address addr);
+    void dispatch(const DecodedInstruction &decodedInstruction, Address addr);
 
     inline void setNZ(Byte data);
     inline void setCNZ(WordWithCarry data);
 
     template<Opcode>
-    inline Byte op(AddressingMode mode, Address addr);
+    inline void op(AddressingMode mode, Address addr);
 
 #define OP_MACRO(opcode)                                                                                               \
     template<>                                                                                                         \
-    Byte op<Opcode::opcode>(AddressingMode mode, Address addr);
+    void op<Opcode::opcode>(AddressingMode mode, Address addr);
     FOREACH_OPCODE(OP_MACRO)
 #undef OP_MACRO
 
     // general purpose branch instruction
-    inline Byte BXX(Flag flag, bool isSet, Address addr);
+    inline void BXX(Flag flag, bool isSet, Address addr);
 
     inline void push(Byte data);
     inline void pushAddress(Address addr);
@@ -100,6 +100,7 @@ private:
     inline Address popAddress();
 
     Byte read(Address addr) const;
+    const Byte *DMAStart(Address addr) const;
     Address readAddress(Address addr) const;
     Address readAddressIndirectWraparound(Address addr) const;
 
@@ -109,13 +110,13 @@ public:
     CPU(Console &c);
 
     // Execute a single instruction and return the number of cycles it took
-    uint8_t step();
+    uint16_t step();
     void reset();
 
     void interrupt(Interrupt interrupt);
 
     void PC(Address addr);
-    uint8_t handleInterrupt();
+    bool handleInterrupt();
 };
 
 } // namespace nes

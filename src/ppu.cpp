@@ -104,6 +104,13 @@ Byte PPU::readRegister(Address addr) {
     return contents;
 }
 
+void PPU::writeDMA(const Byte *page) {
+    if (page == nullptr)
+        return;
+
+    std::memcpy(this->oam.data(), page, 256);
+}
+
 void PPU::writeRegister(Address addr, Byte data) {
     // https://www.nesdev.org/wiki/PPU_scrolling#Register_controls
     switch (addr) {

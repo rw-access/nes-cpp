@@ -165,7 +165,7 @@ public:
 
     Byte readRegister(Address addr);
     void writeRegister(Address addr, Byte data);
-    void writeDMA(); // TODO: optimize this path
+    void writeDMA(const Byte *page);
     void step();
     void updateCycle();
     void updateVRAMAddr();

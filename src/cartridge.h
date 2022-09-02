@@ -34,10 +34,11 @@ public:
 
 public:
     Mapper(PCartridge &&c);
-    virtual ~Mapper()                           = default;
+    virtual ~Mapper()                                = default;
 
-    virtual Byte Read(Address addr) const       = 0;
-    virtual void Write(Address addr, Byte data) = 0;
+    virtual Byte Read(Address addr) const            = 0;
+    virtual const Byte *DMAStart(Address addr) const = 0;
+    virtual void Write(Address addr, Byte data)      = 0;
 
     static std::unique_ptr<Mapper> Create(MapperType mapperType, PCartridge &&cart);
 };
