@@ -7,7 +7,7 @@
 
 namespace nes {
 
-static bool DBG_PRINT = true;
+static bool DBG_PRINT = false;
 
 // clang-format off
 static const DecodedInstruction decodeTable[256]{
@@ -276,8 +276,10 @@ static bool crossesPageBoundary(Address a, Address b) {
 
 uint8_t CPU::step() {
     uint8_t numCycles = this->handleInterrupt();
-    if (numCycles > 0)
+    if (numCycles > 0) {
+        this->cycle += numCycles;
         return numCycles;
+    }
 
     auto prePC         = this->pc;
     auto instFirstByte = this->read(this->pc);
@@ -1361,6 +1363,9 @@ Byte CPU::read(Address addr) const {
         return this->ram[addr % this->ram.size()];
 
     if (addr < 0x4000)
+        return this->console.ppu->readRegister(0x2000 | addr & 0xf);
+
+    if (addr == 0x4014)
         return this->console.ppu->readRegister(addr);
 
     if (addr == 0x4016)
@@ -1383,6 +1388,8 @@ void CPU::write(Address addr, Byte data) {
 
     else if (addr < 0x4000)
         this->console.ppu->writeRegister(0x2000 | (addr & 0x7), data);
+    else if (addr < 0x4014)
+        this->console.ppu->writeRegister(addr, data);
     else if (addr == 0x4016)
         return this->console.controller.Write(data);
     else if (addr < 0x4018)

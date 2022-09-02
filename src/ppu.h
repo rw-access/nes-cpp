@@ -140,7 +140,8 @@ private:
     TileData pendingTile, processedTile;
     Screen screenBuffers[2];
 
-    uint8_t oamAddr          = 0;
+    Byte oamAddr             = 0;
+    Byte bufferedData        = 0;
     VRAMAddress vramAddr     = {.raw = 0};
     VRAMAddress tempVramAddr = {.raw = 0};
     uint8_t fineXScroll : 3  = 0;
@@ -164,6 +165,7 @@ public:
 
     Byte readRegister(Address addr);
     void writeRegister(Address addr, Byte data);
+    void writeDMA(); // TODO: optimize this path
     void step();
     void updateCycle();
     void updateVRAMAddr();

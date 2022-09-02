@@ -33,11 +33,9 @@ void VRAMAddress::incrementY() {
         // bump coarse Y on wraparound
         if (this->coarseY == 29) {
             this->coarseY = 0;
-            this->nameTableSelect ^= 0x1;
-        } else if (this->coarseY == 31) {
-            this->coarseY = 0;
+            this->nameTableSelect ^= 0x2;
         } else {
-            this->coarseY++;
+            this->coarseY++; // wraparound 32->0
         }
     }
 }
@@ -71,18 +69,33 @@ Byte PPU::readRegister(Address addr) {
     // https://www.nesdev.org/wiki/PPU_scrolling#Register_controls
     // mirrored every 8 bytes
     Byte contents = 0;
-    switch (addr % 8) {
-        case 1: // PPUCTRL: $2001
-            return this->status.raw;
-        case 2: // PPUSTATUS: $2002
+    switch (addr) {
+        case 0x2002: // PPUSTATUS: $2002
             contents                 = this->status.raw;
-            this->writeToggle        = 0;
+            this->writeToggle        = false;
             this->status.nmiOccurred = false;
             return contents;
-        case 4: // OAMDATA: $2004
+        case 0x2004: // OAMDATA: $2004
             return this->oam[this->oamAddr];
-        case 7: // PPUDATA: $2007
+        case 0x2007: // PPUDATA: $2007
             contents = this->read(this->vramAddr.raw);
+
+            // When reading while the VRAM address is in the range 0-$3EFF (i.e., before the palettes),
+            // the read will return the contents of an internal read buffer. This internal buffer is
+            // updated only when reading PPUDATA, and so is preserved across frames. After the CPU reads
+            // and gets the contents of the internal buffer, the PPU will immediately update the internal
+            // buffer with the byte at the current VRAM address. Thus, after setting the VRAM address,
+            // one should first read this register to prime the pipeline and discard the result.
+            //
+            // Reading palette data from $3F00-$3FFF works differently. The palette data is placed immediately
+            // on the data bus, and hence no priming read is required. Reading the palettes still updates the
+            // internal buffer though, but the data placed in it is the mirrored nametable data that would
+            // appear "underneath" the palette. (Checking the PPU memory map should make this clearer.)
+            if ((this->vramAddr.raw & 0x3FFF) < 0x3f00)
+                std::swap(contents, this->bufferedData);
+            else if ((this->vramAddr.raw & 0x3FFF) >= 0x3ff)
+                this->bufferedData = this->read(this->vramAddr.raw ^ 0x1000);
+
             this->vramAddr.coarseX += (this->ppuCtrl.vramAddressIncrement ^ 0x1);
             this->vramAddr.coarseY += this->ppuCtrl.vramAddressIncrement;
             break;
@@ -93,8 +106,8 @@ Byte PPU::readRegister(Address addr) {
 
 void PPU::writeRegister(Address addr, Byte data) {
     // https://www.nesdev.org/wiki/PPU_scrolling#Register_controls
-    switch (addr % 8) {
-        case 0: // PPUCTRL: $2000
+    switch (addr) {
+        case 0x2000: // PPUCTRL: $2000
             // t: ...GH.. ........ <- d: ......GH
             //    <used elsewhere> <- d: ABCDEF..
 
@@ -103,36 +116,33 @@ void PPU::writeRegister(Address addr, Byte data) {
             if (this->inVBlank && !this->ppuCtrl.enableNMI && (PPUCTRL{.raw = data}).enableNMI)
                 this->console.cpu->interrupt(Interrupt::NMI);
 
-            this->ppuCtrl.raw                  = data & ~0x3;
-            this->tempVramAddr.nameTableSelect = data & 0x3;
+            this->ppuCtrl.raw                  = data;
+            this->tempVramAddr.nameTableSelect = this->ppuCtrl.baseNameTable;
             break;
-        case 1: // PPUMASK: $2001
+        case 0x2001: // PPUMASK: $2001
             this->ppuMask.raw = data;
             break;
-        case 3: // OAMADDR: $2003
-            if (this->writeToggle == 0)
-                this->oamAddr = (this->oamAddr & 0xff00) | data;
-            else
-                this->oamAddr = data << 8 | (this->oamAddr & 0x00ff);
+        case 0x2003: // OAMADDR: $2003
+            this->oamAddr = data;
             break;
-        case 4: // OAMDATA: $2004
+        case 0x2004: // OAMDATA: $2004
             this->oam[this->oamAddr] = data;
             this->oamAddr++;
             break;
-        case 5: // PPUSCROLL: $2005
+        case 0x2005: // PPUSCROLL: $2005
             if (!this->writeToggle) {
                 // t: ....... ...ABCDE <- d: ABCDE...
                 // x:              FGH <- d: .....FGH
-                this->tempVramAddr.fineY = data >> 3;
-                this->fineXScroll        = data & 0x7;
+                this->tempVramAddr.coarseX = data >> 3;
+                this->fineXScroll          = data & 0x7;
             } else {
                 // t: FGH..AB CDE..... <- d: ABCDEFGH
-                this->tempVramAddr.fineY   = data << 5;
                 this->tempVramAddr.coarseY = data >> 3;
+                this->tempVramAddr.fineY   = data & 0x7;
             }
             this->writeToggle = !this->writeToggle;
             break;
-        case 6: // PPUADDR: $2006
+        case 0x2006: // PPUADDR: $2006
             if (!this->writeToggle) {
                 // t: .CDEFGH ........ <- d: ..CDEFGH
                 //        <unused>     <- d: AB......
@@ -148,7 +158,7 @@ void PPU::writeRegister(Address addr, Byte data) {
 
             this->writeToggle = !this->writeToggle;
             break;
-        case 7: // PPUDATA: $2007
+        case 0x2007: // PPUDATA: $2007
             this->write(this->vramAddr.raw, data);
             if (this->ppuCtrl.vramAddressIncrement == 0) {
                 this->vramAddr.raw++;
@@ -296,14 +306,13 @@ void PPU::stepVisible() {
     if (!this->ppuMask.showBackground && !this->ppuMask.showSprites)
         return;
 
-
     if (this->cycleInScanLine == 0) {
         // idle
     } else if (this->cycleInScanLine <= 256) {
         // visible cycle: draw a pixel
         Byte x          = this->cycleInScanLine - 1;
         Byte y          = this->scanLine;
-        Byte background = this->processedTile.backgroundPixel(x % 8);
+        Byte background = this->processedTile.backgroundPixel((x + this->fineXScroll) % 8);
 
         // TODO: Add sprites!
         auto color                                 = this->paletteRam[background];
@@ -368,7 +377,7 @@ void PPU::updateCycle() {
         if (this->scanLine == 261) {
             this->scanLine = 0;
             this->frame++;
-            //            this->cycleInScanLine += (this->frame & 1); // skip the first cycle for odd frames
+            // this->cycleInScanLine += (this->frame & 1); // skip the first cycle for odd frames
         } else {
             this->scanLine++;
         }
