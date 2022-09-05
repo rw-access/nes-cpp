@@ -120,8 +120,8 @@ Byte PPU::readRegister(Address addr) {
             else if ((this->vramAddr.raw & 0x3FFF) >= 0x3ff)
                 this->bufferedData = this->read(this->vramAddr.raw ^ 0x1000);
 
-            this->vramAddr.coarseX += (this->ppuCtrl.vramAddressIncrement ^ 0x1);
-            this->vramAddr.coarseY += this->ppuCtrl.vramAddressIncrement;
+            this->vramAddr.raw +=
+                    (this->ppuCtrl.vramAddressIncrement ^ 0x1) | (this->ppuCtrl.vramAddressIncrement << 5);
             break;
     }
 
@@ -196,11 +196,8 @@ void PPU::writeRegister(Address addr, Byte data) {
             break;
         case 0x2007: // PPUDATA: $2007
             this->write(this->vramAddr.raw, data);
-            if (this->ppuCtrl.vramAddressIncrement == 0) {
-                this->vramAddr.raw++;
-            } else {
-                this->vramAddr.raw += 32;
-            }
+            this->vramAddr.raw +=
+                    (this->ppuCtrl.vramAddressIncrement ^ 0x1) | (this->ppuCtrl.vramAddressIncrement << 5);
             break;
     }
 }
