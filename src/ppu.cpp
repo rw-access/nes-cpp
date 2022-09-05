@@ -12,8 +12,8 @@ uint32_t colorPaletteRGBA[] = {
 };
 
 Byte TileData::color(uint8_t x) const {
-    auto loBit = (this->PatternTableLow >> (7 - x)) & 1;
-    auto hiBit = (this->PatternTableHigh >> (7 - x)) & 1;
+    auto loBit = (this->patternLow >> (7 - x)) & 1;
+    auto hiBit = (this->patternHigh >> (7 - x)) & 1;
     return (hiBit << 1) | loBit;
 }
 
@@ -262,19 +262,24 @@ void PPU::fetchBackgroundTile() {
 
     // ultimately, we're retrieving and rendering a strip of 8 pixels long as a single unit
     // this way, it averages 1 pixel / cycle.
+    const Address v = this->vramAddr.raw;
 
     // https://www.nesdev.org/wiki/PPU_scrolling#Tile_and_attribute_fetching
     switch (this->cycleInScanLine % 8) {
         case 1:
             // everything but fine Y
-            this->pendingTile.NameTableByte = this->read(0x2000 | this->vramAddr.raw & 0x0FFF);
+            this->pendingTile.nameTableIndex = this->read(0x2000 | v & 0x0FFF);
             break;
-        case 3:
+        case 3: {
             // TODO: switch to use bitfields
-            this->pendingTile.AttributeTableByte =
-                    this->read(0x23C0 | (this->vramAddr.raw & 0x0C00) | ((this->vramAddr.raw >> 4) & 0x38) |
-                               ((this->vramAddr.raw >> 2) & 0x07));
+            // https://www.nesdev.org/wiki/PPU_scrolling#Tile_and_attribute_fetching
+            // https://www.nesdev.org/wiki/PPU_attribute_tables
+            auto attrAddress          = 0x23C0 | (v & 0x0C00) | ((v >> 4) & 0x38) | ((v >> 2) & 0x07);
+            auto attrData             = this->read(attrAddress);
+            auto attrShift            = (v & 0x40) >> 4 | (v & 0x2);
+            this->pendingTile.palette = (attrData >> attrShift) & 0x3;
             break;
+        }
         case 5:
             // two pattern tables: 0x0000 and 0x1000
             // xxxx xxxx xxxx xxxx
@@ -282,9 +287,9 @@ void PPU::fetchBackgroundTile() {
             //      ^^^^ ^^^^ ------- tile
             //                0------ low byte
             //    ^ ---- ---- ------- foreground/background
-            this->pendingTile.PatternTableLow =
+            this->pendingTile.patternLow =
                     this->read(this->ppuCtrl.backgroundPatternTableAddress << 12 |
-                               this->pendingTile.NameTableByte << 4 | 0 << 3 | this->vramAddr.fineY);
+                               this->pendingTile.nameTableIndex << 4 | 0 << 3 | this->vramAddr.fineY);
             break;
         case 7:
             //two pattern tables: 0x0000 and 0x1000
@@ -293,9 +298,9 @@ void PPU::fetchBackgroundTile() {
             //      ^^^^ ^^^^ ------- tile
             //                1------ high byte
             //    ^ ---- ---- ------- foreground/background
-            this->pendingTile.PatternTableHigh =
+            this->pendingTile.patternHigh =
                     this->read(this->ppuCtrl.backgroundPatternTableAddress << 12 |
-                               this->pendingTile.NameTableByte << 4 | 1 << 3 | this->vramAddr.fineY);
+                               this->pendingTile.nameTableIndex << 4 | 1 << 3 | this->vramAddr.fineY);
             break;
         case 0:
             this->processedTiles = {this->processedTiles[1], this->pendingTile};
@@ -383,11 +388,9 @@ void PPU::stepVisible() {
 
         // fetch the background pixel
         // TODO: fix fine X scrolling
-        Byte tileX            = x % 8;
-        Byte tilePaletteIndex = this->processedTiles[0].color(tileX);
-
-        // TODO: retrieve from this->processedTile.AttributeByte
-        Byte tilePaletteOffset = 0;
+        Byte tileX             = x % 8;
+        Byte tilePaletteIndex  = this->processedTiles[0].color(tileX);
+        Byte tilePaletteOffset = (this->processedTiles[0].palette & 0x3) << 2;
 
         // fetch the sprite pixel
         Byte spPos           = 0;
@@ -444,7 +447,7 @@ void PPU::stepVisible() {
                 // drawTile
                 Byte(tilePaletteOffset | tilePaletteIndex),
                 // drawSprite
-                Byte(spPaletteOffset | spPaletteIndex),
+                Byte(0x10 | spPaletteOffset | spPaletteIndex),
         };
 
         Byte paletteIndex = multiplexedColors[uint8_t(md)];
@@ -476,8 +479,8 @@ void PPU::stepVisible() {
 
             tileY                = sprite.attributes.flipVertical ? (7 - tileY) : tileY;
             processedSprite.tile = {
-                    .PatternTableLow  = this->read(patternTableAddress | (tileIndex << 4) | tileY),
-                    .PatternTableHigh = this->read(patternTableAddress | (tileIndex << 4) | (1 << 3) | tileY),
+                    .patternLow  = this->read(patternTableAddress | (tileIndex << 4) | tileY),
+                    .patternHigh = this->read(patternTableAddress | (tileIndex << 4) | (1 << 3) | tileY),
             };
         }
 

@@ -106,10 +106,10 @@ struct Sprite {
 };
 
 struct TileData {
-    Byte NameTableByte;
-    Byte AttributeTableByte;
-    Byte PatternTableLow;
-    Byte PatternTableHigh;
+    Byte nameTableIndex;
+    Byte palette;
+    Byte patternLow;
+    Byte patternHigh;
 
     Byte color(uint8_t x) const;
 };
