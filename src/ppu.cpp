@@ -440,8 +440,7 @@ void PPU::stepVisible() {
                 multiplexer[(tilePaletteIndex != 0) << 2 | (spPaletteIndex != 0) << 1 | (spInBackground)];
         Byte multiplexedColors[3] = {
                 // background
-                // TODO: BG 0x3f00
-                0,
+                0, //
                 // drawTile
                 Byte(tilePaletteOffset | tilePaletteIndex),
                 // drawSprite
@@ -468,7 +467,7 @@ void PPU::stepVisible() {
                 continue;
 
             // retrieve the corresponding tile for the sprite
-            Byte bank = this->ppuCtrl.tallSprites ? sprite.tileIndex.bank : this->ppuCtrl.backgroundPatternTableAddress;
+            Byte bank = this->ppuCtrl.tallSprites ? sprite.tileIndex.bank : this->ppuCtrl.spritePatternTableAddress;
             Address patternTableAddress = Address(bank) << 12;
             Address tileIndex           = sprite.tileIndex.raw & ~Byte(this->ppuCtrl.tallSprites);
             Byte tileY                  = this->scanLine - sprite.yPosTop;

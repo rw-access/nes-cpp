@@ -160,12 +160,20 @@ int runRom(std::string romPath) {
 }
 
 int main(int argc, char *argv[]) {
-    if (argc != 2) {
-        printf("usage: %s <rom file>\n", argv[0]);
+    if (argc != 3) {
+        printf("usage: %s <play|dump> <rom file>\n", argv[0]);
         return 1;
     }
 
-    // drawTiles(argv[1]);
-    runRom(argv[1]);
-    return 0;
+    auto command = std::string(argv[1]);
+    auto file    = std::string(argv[2]);
+
+    if (command == "play")
+        return runRom(file);
+    else if (command == "dump")
+        return drawTiles(file);
+    else
+        printf("usage: %s <play|dump> <rom file>\n", argv[0]);
+
+    return 1;
 }
