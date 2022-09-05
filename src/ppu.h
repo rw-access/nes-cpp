@@ -23,7 +23,7 @@ union PPUCTRL {
         Byte vramAddressIncrement          : 1;
         Byte spritePatternTableAddress     : 1;
         Byte backgroundPatternTableAddress : 1;
-        Byte spriteSize                    : 1;
+        bool tallSprites                   : 1;
         bool ppuMasterSelect               : 1;
         bool enableNMI                     : 1;
     };
@@ -86,18 +86,23 @@ union VRAMAddress {
 
 struct Sprite {
     Byte yPosTop; // byte 0
-    struct {
-        Byte bank          : 1;
-        Byte tileNumberTop : 7;
-    } TileIndex; // byte 1
+    union {
+        struct {
+            Byte bank          : 1;
+            Byte tileNumberTop : 7;
+        };
+        Byte raw;
+    } tileIndex; // byte 1
     struct {
         Byte palette                  : 2;
         Byte                          : 3;
         bool priorityBehindBackground : 1;
         bool flipHorizontal           : 1;
         bool flipVertical             : 1;
-    } Attributes;  // byte 2
+    } attributes;  // byte 2
     Byte xPosLeft; // byte 3
+
+    bool empty() const;
 };
 
 struct TileData {
@@ -106,8 +111,14 @@ struct TileData {
     Byte PatternTableLow;
     Byte PatternTableHigh;
 
-    uint8_t backgroundPixel(uint8_t x) const;
-    uint8_t foregroundPixel(uint8_t x) const;
+    Byte color(uint8_t x) const;
+};
+
+struct ProcessedSprite {
+    Sprite sprite;
+    TileData tile;
+
+    Byte color(uint8_t x) const;
 };
 
 static_assert(sizeof(PPUCTRL) == 1);
@@ -134,17 +145,19 @@ private:
     uint16_t cycleInScanLine          = 0;   // range [0, 340]
     uint64_t frame                    = 0;
     std::array<Byte, 256> oam         = {0}; // 64 sprites
-    std::array<Byte, 8> secondaryOam  = {0}; // up to 8 sprites on the current line
+    std::array<Byte, 32> secondaryOam = {0}; // up to 8 sprites on the current line
     std::array<Byte, 32> paletteRam   = {0};
     std::array<Byte, 2048> nametables = {0};
-    TileData pendingTile, processedTile;
+    std::array<ProcessedSprite, 8> processedSprites; // after secondary is populated and tiles are fetched
+    TileData pendingTile;
+    std::array<TileData, 2> processedTiles;
     Screen screenBuffers[2];
 
     Byte oamAddr             = 0;
     Byte bufferedData        = 0;
     VRAMAddress vramAddr     = {.raw = 0};
     VRAMAddress tempVramAddr = {.raw = 0};
-    uint8_t fineXScroll : 3  = 0;
+    Byte fineXScroll : 3     = 0;
     bool writeToggle         = 0;
     bool inVBlank            = false;
 
@@ -160,6 +173,9 @@ private:
 public:
     PPU(Console &c);
 
+    std::array<Sprite, 64> &primarySprites();
+    std::array<Sprite, 8> &secondarySprites();
+
     uint64_t currentFrame() const;
     const Screen &completedScreen() const;
 
@@ -169,7 +185,7 @@ public:
     void step();
     void updateCycle();
     void updateVRAMAddr();
-    void fetchTile();
+    void fetchBackgroundTile();
     void reset();
 };
 

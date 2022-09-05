@@ -614,12 +614,10 @@ void CPU::op<Opcode::BRK>(AddressingMode, Address) {
     // 5  $0100,S  W  push P on stack, decrement S
     // 6   $FFFE   R  fetch PCL
     // 7   $FFFF   R  fetch PCH
-
-    this->status[Flag::B] = true;
-
     this->pushAddress(this->pc);
-    this->push(Byte(this->status.to_ulong()));
-    this->readAddress(0xfffe);
+    this->op<Opcode::PHP>(AddressingMode::Implied, 0);
+    this->status[uint8_t(Flag::I)] = true;
+    this->pc                       = this->readAddress(0xfffe);
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#BVC
@@ -853,10 +851,9 @@ void CPU::op<Opcode::PLP>(AddressingMode, Address) {
     // Two instructions (PLP and RTI) pull a byte from the stack and set all the flags.
     // They ignore bits 5 (U) and 4 (B).
     // https://www.nesdev.org/wiki/Status_flags
-    auto prevStatus       = this->status;
     this->status          = this->pop();
-    this->status[Flag::U] = prevStatus[Flag::U];
-    this->status[Flag::B] = prevStatus[Flag::B];
+    this->status[Flag::U] = true;
+    this->status[Flag::B] = false;
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ROL
@@ -916,12 +913,8 @@ void CPU::op<Opcode::RTI>(AddressingMode, Address) {
     // Two instructions (PLP and RTI) pull a byte from the stack and set all the flags.
     // They ignore bits 5 (U) and 4 (B).
     // https://www.nesdev.org/wiki/Status_flags
-    auto prevStatus       = this->status;
-    this->status          = this->pop();
-    this->status[Flag::U] = prevStatus[Flag::U];
-    this->status[Flag::B] = prevStatus[Flag::B];
-
-    this->pc              = this->popAddress();
+    this->op<Opcode::PLP>(AddressingMode::Implied, 0);
+    this->pc = this->popAddress();
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#RTS
@@ -1258,10 +1251,8 @@ void CPU::push(Byte data) {
 }
 
 void CPU::pushAddress(Address addr) {
-    Byte hi = addr >> 8;
-    Byte lo = addr & 0xff;
-    this->push(hi);
-    this->push(lo);
+    this->push(addr >> 8);
+    this->push(addr & 0xff);
 }
 
 Byte CPU::pop() {
@@ -1298,7 +1289,7 @@ Byte CPU::read(Address addr) const {
 
 const Byte *CPU::DMAStart(nes::Address addr) const {
     // https://www.nesdev.org/wiki/CPU_memory_map
-    if (addr < 0x2000)
+    if (addr <= (0x2000 - 256))
         return &this->ram[addr % this->ram.size()];
 
     return this->console.mapper->DMAStart(addr);
@@ -1309,9 +1300,13 @@ void CPU::write(Address addr, Byte data) {
         this->ram[addr % this->ram.size()] = data;
     else if (addr < 0x4000)
         this->console.ppu->writeRegister(0x2000 | (addr & 0x7), data);
-    else if (addr < 0x4014)
-        return; // this->console.ppu->writeDMA(this->DMAStart(Address(data)));
-    else if (addr == 0x4016)
+    else if (addr == 0x4014) {
+        // https://www.nesdev.org/wiki/PPU_registers#OAM_DMA_($4014)_%3E_write
+        this->console.ppu->writeDMA(this->DMAStart(Address(data) << 8));
+        this->cycle += 512;
+        this->cycle++;
+        this->cycle += (this->cycle & 1); // extra cycle for odd
+    } else if (addr == 0x4016)
         return this->console.controller.Write(data);
     else if (addr < 0x4018)
         // return &this->apu[addr - 0x4000];
@@ -1343,8 +1338,17 @@ Address CPU::readAddressIndirectWraparound(Address addr) const {
 }
 
 void CPU::interrupt(Interrupt interrupt) {
-    if (interrupt > this->pendingInterrupt)
-        this->pendingInterrupt = interrupt;
+    switch (interrupt) {
+        case Interrupt::IRQ:
+            if (!this->status[Flag::I])
+                this->pendingInterrupt = interrupt;
+            break;
+        case Interrupt::NMI:
+            this->pendingInterrupt = interrupt;
+            break;
+        case Interrupt::None:
+            break;
+    }
 }
 
 void CPU::PC(Address addr) {
@@ -1365,9 +1369,10 @@ bool CPU::handleInterrupt() {
     }
 
     this->pushAddress(this->pc);
+    // TODO: verify with https://www.nesdev.org/wiki/Status_flags#The_B_flag
     this->op<Opcode::PHP>(AddressingMode::Implied, 0);
     this->pc               = this->readAddress(handlerAddress);
-    this->status[Flag::I]  = 1;
+    this->status[Flag::I]  = true;
     this->pendingInterrupt = Interrupt::None;
     this->cycle += 7;
     return true;

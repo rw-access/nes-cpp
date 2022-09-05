@@ -11,10 +11,24 @@ uint32_t colorPaletteRGBA[] = {
         0xF7D8A5, 0xE4E594, 0xCFEF96, 0xBDF4AB, 0xB3F3CC, 0xB5EBF2, 0xB8B8B8, 0x000000, 0x000000,
 };
 
-uint8_t TileData::backgroundPixel(uint8_t x) const {
+Byte TileData::color(uint8_t x) const {
     auto loBit = (this->PatternTableLow >> (7 - x)) & 1;
     auto hiBit = (this->PatternTableHigh >> (7 - x)) & 1;
     return (hiBit << 1) | loBit;
+}
+
+Byte ProcessedSprite::color(uint8_t x) const {
+    x = this->sprite.attributes.flipHorizontal ? (7 - x) : x;
+    return this->tile.color(x);
+}
+
+bool Sprite::empty() const {
+    auto rawBytes = (const Byte *) (this);
+    bool equiv    = true;
+    for (auto offset = 0; offset < sizeof(Sprite); offset++)
+        equiv = equiv && rawBytes[offset] == 0xff;
+
+    return equiv;
 }
 
 void VRAMAddress::incrementX() {
@@ -108,7 +122,12 @@ void PPU::writeDMA(const Byte *page) {
     if (page == nullptr)
         return;
 
-    std::memcpy(this->oam.data(), page, 256);
+    // TODO: split into two unconditional memcpys!
+    if (this->oamAddr == 0)
+        std::memcpy(this->oam.data(), page, 256);
+    else
+        for (auto offset = 0; offset < 256; offset++)
+            this->oam[(this->oamAddr + offset) & 0xff] = page[offset];
 }
 
 void PPU::writeRegister(Address addr, Byte data) {
@@ -216,7 +235,7 @@ void PPU::write(Address addr, Byte data) {
 }
 
 
-void PPU::fetchTile() {
+void PPU::fetchBackgroundTile() {
     // The data for each tile is fetched during this phase. Each memory access takes 2 PPU cycles to complete,
     // and 4 must be performed per tile:
     //
@@ -244,10 +263,8 @@ void PPU::fetchTile() {
     // ultimately, we're retrieving and rendering a strip of 8 pixels long as a single unit
     // this way, it averages 1 pixel / cycle.
 
-    auto x = this->cycleInScanLine - 1;
-
     // https://www.nesdev.org/wiki/PPU_scrolling#Tile_and_attribute_fetching
-    switch (x % 8) {
+    switch (this->cycleInScanLine % 8) {
         case 1:
             // everything but fine Y
             this->pendingTile.NameTableByte = this->read(0x2000 | this->vramAddr.raw & 0x0FFF);
@@ -270,7 +287,7 @@ void PPU::fetchTile() {
                                this->pendingTile.NameTableByte << 4 | 0 << 3 | this->vramAddr.fineY);
             break;
         case 7:
-            // two pattern tables: 0x0000 and 0x1000
+            //two pattern tables: 0x0000 and 0x1000
             // xxxx xxxx xxxx xxxx
             //                 ^^^--- fine Y
             //      ^^^^ ^^^^ ------- tile
@@ -279,12 +296,21 @@ void PPU::fetchTile() {
             this->pendingTile.PatternTableHigh =
                     this->read(this->ppuCtrl.backgroundPatternTableAddress << 12 |
                                this->pendingTile.NameTableByte << 4 | 1 << 3 | this->vramAddr.fineY);
-
-            this->processedTile = this->pendingTile;
+            break;
+        case 0:
+            this->processedTiles = {this->processedTiles[1], this->pendingTile};
             break;
     }
 }
 
+
+std::array<Sprite, 64> &PPU::primarySprites() {
+    return *((std::array<Sprite, 64> *) (&this->oam));
+}
+
+std::array<Sprite, 8> &PPU::secondarySprites() {
+    return *((std::array<Sprite, 8> *) (&this->secondaryOam));
+}
 
 void PPU::stepPreRender() {
     // Pre-render scanline (-1 or 261)
@@ -300,10 +326,10 @@ void PPU::stepPreRender() {
     if (this->cycleInScanLine == 0) {
         // idle
     } else if (this->cycleInScanLine <= 256) {
-        this->fetchTile();
+        this->fetchBackgroundTile();
     } else if (this->cycleInScanLine >= 321 && this->cycleInScanLine <= 336) {
         // prefetch for the next line
-        this->fetchTile();
+        this->fetchBackgroundTile();
     }
 
     this->updateVRAMAddr();
@@ -316,19 +342,149 @@ void PPU::stepVisible() {
     if (this->cycleInScanLine == 0) {
         // idle
     } else if (this->cycleInScanLine <= 256) {
+        // perform sprite evaluation for the next line
+        // on a real NES, this is evenly spread out across cycles,
+        // so theoretically, there could be inconsistencies if the primary OAM is still being modified
+        if (this->cycleInScanLine == 64) {
+            // Cycles 1-64: fill secondary OAM with 0xFF.
+            // since this isn't readable from the program, ther shouldn't be
+            // any risk of breaking games by doing this all on one cycle
+            this->secondaryOam.fill(0xff);
+        } else if (this->cycleInScanLine == 256) {
+            // cycles 65-256: Sprite evaluation
+            auto nextSprite         = 0;
+            const Byte spriteHeight = this->ppuCtrl.tallSprites ? 16 : 8;
+
+            // scan primary sprites, copying ones that are in range to the secondary OAM.
+            // update overflow when > 8 are detected.
+            // on a real NES, this is spread out from cycles 65-256, so hopefully
+            // this approximation is accurate enough for most games
+            for (auto &sprite: this->primarySprites()) {
+                if (this->scanLine >= sprite.yPosTop && this->scanLine < (sprite.yPosTop + spriteHeight)) {
+                    // on the current line
+                    if (nextSprite == 8) {
+                        this->status.spriteOverflow = true;
+                        break;
+                    }
+
+                    this->secondarySprites()[nextSprite] = sprite;
+                    nextSprite++;
+                }
+            }
+        }
+
         // visible cycle: draw a pixel
-        Byte x          = this->cycleInScanLine - 1;
-        Byte y          = this->scanLine;
-        Byte background = this->processedTile.backgroundPixel((x + this->fineXScroll) % 8);
+        Byte x = this->cycleInScanLine - 1;
+        Byte y = this->scanLine;
+
+        // fetch the background pixel
+        // TODO: fix fine X scrolling
+        Byte tileX            = x % 8;
+        Byte tilePaletteIndex = this->processedTiles[0].color(tileX);
+
+        // TODO: retrieve from this->processedTile.AttributeByte
+        Byte tilePaletteOffset = 0;
+
+        // fetch the sprite pixel
+        Byte spPos           = 0;
+        Byte spPaletteIndex  = 0;
+        Byte spPaletteOffset = 0;
+        bool spInBackground  = false;
+
+        for (spPos = 0; spPos < 8; spPos++) {
+            auto &processedSprite = this->processedSprites[spPos];
+            if (!this->ppuMask.showSprites || processedSprite.sprite.empty())
+                break;
+
+            if (x >= processedSprite.sprite.xPosLeft && x < (processedSprite.sprite.xPosLeft + 8)) {
+                auto spX       = (x + this->fineXScroll) - processedSprite.sprite.xPosLeft;
+                spPaletteIndex = processedSprite.color(spX);
+                if (spPaletteIndex != 0) {
+                    spPaletteOffset = processedSprite.sprite.attributes.palette << 2;
+                    spInBackground  = processedSprite.sprite.attributes.priorityBehindBackground;
+                    break;
+                }
+            }
+        }
+
+        // https://www.nesdev.org/wiki/PPU_rendering#Preface
+        // Priority multiplexer decision table
+        // Implemented as a predefined array to reduce branching
+        enum class MultiplexerDecision {
+            drawBackground = 0,
+            drawTile       = 1,
+            drawSprite     = 2,
+        };
+
+        const static MultiplexerDecision multiplexer[8]{
+                // bg==0, sp==0, priority==X
+                MultiplexerDecision::drawBackground,
+                MultiplexerDecision::drawBackground,
+                // bg==0, sp!=0, priority==X
+                MultiplexerDecision::drawSprite,
+                MultiplexerDecision::drawSprite,
+                // bg!=0, sp==0, priority==X
+                MultiplexerDecision::drawTile,
+                MultiplexerDecision::drawTile,
+                // bg!=0, sp!=0, priority==foreground
+                MultiplexerDecision::drawSprite,
+                // bg!=0, sp!=0, priority==background
+                MultiplexerDecision::drawTile,
+        };
+
+        MultiplexerDecision md =
+                multiplexer[(tilePaletteIndex != 0) << 2 | (spPaletteIndex != 0) << 1 | (spInBackground)];
+        Byte multiplexedColors[3] = {
+                // background
+                // TODO: BG 0x3f00
+                0,
+                // drawTile
+                Byte(tilePaletteOffset | tilePaletteIndex),
+                // drawSprite
+                Byte(spPaletteOffset | spPaletteIndex),
+        };
+
+        Byte paletteIndex = multiplexedColors[uint8_t(md)];
 
         // TODO: Add sprites!
-        auto color                                 = this->paletteRam[background];
+        auto color                                 = this->paletteRam[paletteIndex];
         this->screenBuffers[this->frame & 1][y][x] = colorPaletteRGBA[color];
+        this->status.spriteZeroHit |= (spPos == 0) && (md == MultiplexerDecision::drawSprite);
 
-        this->fetchTile();
+        this->fetchBackgroundTile();
+    } else if (this->cycleInScanLine == 320) {
+        // Cycles 257-320: Sprite fetches (8 sprites total, 8 cycles per sprite).
+        // Find the corresponding tiles for each sprite
+        for (auto s = 0; s < this->secondarySprites().size(); s++) {
+            auto &processedSprite  = this->processedSprites[s];
+            auto &sprite           = this->secondarySprites()[s];
+
+            processedSprite.sprite = sprite;
+            if (sprite.empty()) {
+                continue;
+            }
+
+            // retrieve the corresponding tile for the sprite
+            Byte bank = this->ppuCtrl.tallSprites ? sprite.tileIndex.bank : this->ppuCtrl.backgroundPatternTableAddress;
+            Address patternTableAddress = Address(bank) << 12;
+            Address tileIndex           = sprite.tileIndex.raw & ~Byte(this->ppuCtrl.tallSprites);
+            Byte tileY                  = this->scanLine - sprite.yPosTop;
+
+            // TODO: 8x16 sprite support
+
+            tileY                = sprite.attributes.flipVertical ? (7 - tileY) : tileY;
+            processedSprite.tile = {
+                    .PatternTableLow  = this->read(patternTableAddress | (tileIndex << 4) | tileY),
+                    .PatternTableHigh = this->read(patternTableAddress | (tileIndex << 4) | (1 << 3) | tileY),
+            };
+        }
+
+        // 1-4: Read the Y-coordinate, tile number, attributes, and X-coordinate of the selected sprite from secondary OAM
+        // 5-8: Read the X-coordinate of the selected sprite from secondary OAM 4 times (while the PPU fetches the sprite tile data)
+        // For the first empty sprite slot, this will consist of sprite #63's Y-coordinate followed by 3 $FF bytes; for subsequent empty sprite slots, this will be four $FF bytes
     } else if (this->cycleInScanLine >= 321 && this->cycleInScanLine <= 336) {
         // prefetch for the next line
-        this->fetchTile();
+        this->fetchBackgroundTile();
     }
 
     this->updateVRAMAddr();
@@ -382,9 +538,14 @@ void PPU::updateCycle() {
         this->cycleInScanLine = 0;
 
         if (this->scanLine == 261) {
-            this->scanLine = 0;
             this->frame++;
-            // this->cycleInScanLine += (this->frame & 1); // skip the first cycle for odd frames
+            this->scanLine = 0;
+
+            // https://www.nesdev.org/wiki/PPU_frame_timing#Even/Odd_Frames
+            // https://www.nesdev.org/wiki/File:Ntsc_timing.png
+            // skip the first cycle of a frame when odd + rendering enabled
+            this->cycleInScanLine += (this->ppuMask.showBackground || this->ppuMask.showSprites) &&
+                                     (this->frame & 1); // skip the first cycle for odd frames
         } else {
             this->scanLine++;
         }
