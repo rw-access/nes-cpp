@@ -65,6 +65,16 @@ void VRAMAddress::copyY(const nes::VRAMAddress &other) {
     this->fineY           = other.fineY;
 }
 
+Byte mirrorPalette(Byte offset) {
+    // Expected range [0x00, 0x1F]
+    // Addresses $3F10/$3F14/$3F18/$3F1C are mirrors of $3F00/$3F04/$3F08/$3F0C
+    //           $10/$14/$18/$1C are mirrors of $00/$04/$08/$0C
+    // Perform with no branching logic
+    bool isMirrored = (offset & 0x13) == 0x10;
+    offset &= ~(isMirrored << 4);
+    return offset;
+}
+
 PPU::PPU(nes::Console &c) :
     console(c) {
     this->reset();
@@ -196,11 +206,12 @@ void PPU::writeRegister(Address addr, Byte data) {
 }
 
 // https://www.nesdev.org/wiki/Mirroring#Nametable_Mirroring
-static const uint8_t nameTableMirrorings[][4] = {
-        {0, 0, 1, 1}, // Cartridge::MirroringMode::Horizontal   = 0
-        {0, 0, 1, 1}, // Cartridge::MirroringMode::Vertical     = 1
+static const uint8_t nameTableMirrorings[4][4] = {
+        // 2000, 2400, 2800, 2C00
+        {0, 0, 1, 1}, // Cartridge::MirroringMode::Horizontal            = 0
+        {0, 1, 0, 1}, // Cartridge::MirroringMode::Vertical              = 1
         {0, 0, 0, 0}, // Cartridge::MirroringMode::SingleScreenLowerBank = 3
-        {0, 1, 2, 3}, // Cartridge::MirroringMode::FourScreen   = 4
+        {0, 1, 2, 3}, // Cartridge::MirroringMode::FourScreen            = 4
 };
 
 Byte PPU::read(Address addr) const {
@@ -214,7 +225,7 @@ Byte PPU::read(Address addr) const {
         auto nameTableBank = nameTableMirrorings[uint8_t(this->console.mapper->cartridge->mirroringMode)][nameTable];
         return this->nametables[nameTableBank << 10 | nameTableOffset];
     } else {
-        return this->paletteRam[addr % 0x20];
+        return this->paletteRam[mirrorPalette(addr % 0x20)];
     }
 }
 
@@ -230,7 +241,7 @@ void PPU::write(Address addr, Byte data) {
         auto nameTableBank = nameTableMirrorings[uint8_t(this->console.mapper->cartridge->mirroringMode)][nameTable];
         this->nametables[nameTableBank << 10 | nameTableOffset] = data;
     } else {
-        this->paletteRam[addr % 0x20] = data;
+        this->paletteRam[mirrorPalette(addr % 0x20)] = data;
     }
 }
 
@@ -388,9 +399,10 @@ void PPU::stepVisible() {
 
         // fetch the background pixel
         // TODO: fix fine X scrolling
-        Byte tileX             = x % 8;
-        Byte tilePaletteIndex  = this->processedTiles[0].color(tileX);
-        Byte tilePaletteOffset = (this->processedTiles[0].palette & 0x3) << 2;
+        Byte fineX             = (x % 8) + this->fineXScroll;
+        const TileData &tile   = this->processedTiles[fineX >> 3];
+        Byte tilePaletteIndex  = tile.color(fineX % 8);
+        Byte tilePaletteOffset = (tile.palette & 0x3) << 2;
 
         // fetch the sprite pixel
         Byte spPos           = 0;
@@ -404,7 +416,7 @@ void PPU::stepVisible() {
                 break;
 
             if (x >= processedSprite.sprite.xPosLeft && x < (processedSprite.sprite.xPosLeft + 8)) {
-                auto spX       = (x + this->fineXScroll) - processedSprite.sprite.xPosLeft;
+                auto spX       = x - processedSprite.sprite.xPosLeft;
                 spPaletteIndex = processedSprite.color(spX);
                 if (spPaletteIndex != 0) {
                     spPaletteOffset = processedSprite.sprite.attributes.palette << 2;
@@ -453,7 +465,7 @@ void PPU::stepVisible() {
         Byte paletteIndex = multiplexedColors[uint8_t(md)];
 
         // TODO: Add sprites!
-        auto color                                 = this->paletteRam[paletteIndex];
+        auto color                                 = this->paletteRam[mirrorPalette(paletteIndex)];
         this->screenBuffers[this->frame & 1][y][x] = colorPaletteRGBA[color];
         this->status.spriteZeroHit |= this->spriteZeroInLine && (spPos == 0) && (md == MultiplexerDecision::drawSprite);
 
