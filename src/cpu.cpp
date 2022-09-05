@@ -1063,14 +1063,12 @@ void CPU::op<Opcode::XAA>(AddressingMode, Address) {
 }
 
 
-// https://www.nesdev.org/obelisk-6502-guide/reference.html# ISB
 template<>
 void CPU::op<Opcode::ISB>(AddressingMode mode, Address addr) {
     this->op<Opcode::INC>(mode, addr);
     this->op<Opcode::SBC>(mode, addr);
 }
 
-// https://www.nesdev.org/obelisk-6502-guide/reference.html#RLA
 template<>
 void CPU::op<Opcode::RLA>(AddressingMode mode, Address addr) {
     this->op<Opcode::ROL>(mode, addr);

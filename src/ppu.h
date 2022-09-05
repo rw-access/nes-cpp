@@ -151,6 +151,7 @@ private:
     std::array<ProcessedSprite, 8> processedSprites; // after secondary is populated and tiles are fetched
     TileData pendingTile;
     std::array<TileData, 2> processedTiles;
+    bool spriteZeroInLine = false;
     Screen screenBuffers[2];
 
     Byte oamAddr             = 0;

@@ -354,12 +354,14 @@ void PPU::stepVisible() {
             // cycles 65-256: Sprite evaluation
             auto nextSprite         = 0;
             const Byte spriteHeight = this->ppuCtrl.tallSprites ? 16 : 8;
+            this->spriteZeroInLine  = false;
 
             // scan primary sprites, copying ones that are in range to the secondary OAM.
             // update overflow when > 8 are detected.
             // on a real NES, this is spread out from cycles 65-256, so hopefully
             // this approximation is accurate enough for most games
-            for (auto &sprite: this->primarySprites()) {
+            for (size_t idx = 0; idx < 64; idx++) {
+                auto &sprite = this->primarySprites()[idx];
                 if (this->scanLine >= sprite.yPosTop && this->scanLine < (sprite.yPosTop + spriteHeight)) {
                     // on the current line
                     if (nextSprite == 8) {
@@ -367,6 +369,8 @@ void PPU::stepVisible() {
                         break;
                     }
 
+
+                    this->spriteZeroInLine |= idx == 0;
                     this->secondarySprites()[nextSprite] = sprite;
                     nextSprite++;
                 }
@@ -449,7 +453,7 @@ void PPU::stepVisible() {
         // TODO: Add sprites!
         auto color                                 = this->paletteRam[paletteIndex];
         this->screenBuffers[this->frame & 1][y][x] = colorPaletteRGBA[color];
-        this->status.spriteZeroHit |= (spPos == 0) && (md == MultiplexerDecision::drawSprite);
+        this->status.spriteZeroHit |= this->spriteZeroInLine && (spPos == 0) && (md == MultiplexerDecision::drawSprite);
 
         this->fetchBackgroundTile();
     } else if (this->cycleInScanLine == 320) {
@@ -460,9 +464,8 @@ void PPU::stepVisible() {
             auto &sprite           = this->secondarySprites()[s];
 
             processedSprite.sprite = sprite;
-            if (sprite.empty()) {
+            if (sprite.empty())
                 continue;
-            }
 
             // retrieve the corresponding tile for the sprite
             Byte bank = this->ppuCtrl.tallSprites ? sprite.tileIndex.bank : this->ppuCtrl.backgroundPatternTableAddress;
@@ -544,7 +547,7 @@ void PPU::updateCycle() {
             // https://www.nesdev.org/wiki/PPU_frame_timing#Even/Odd_Frames
             // https://www.nesdev.org/wiki/File:Ntsc_timing.png
             // skip the first cycle of a frame when odd + rendering enabled
-            this->cycleInScanLine += (this->ppuMask.showBackground || this->ppuMask.showSprites) &&
+            this->cycleInScanLine += (this->ppuMask.showBackground | this->ppuMask.showSprites) &
                                      (this->frame & 1); // skip the first cycle for odd frames
         } else {
             this->scanLine++;

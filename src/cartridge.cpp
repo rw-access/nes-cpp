@@ -37,10 +37,10 @@ public:
             return 0;
         else if (addr < 0xC000)
             // CPU $8000-$BFFF: 16 KB switchable PRG ROM bank
-            return this->cartridge->prgROM[this->secondBankStart | (addr % 0x4000)];
+            return this->cartridge->prgROM[this->firstBankStart | (addr % 0x4000)];
         else
             // CPU $C000-$FFFF: 16 KB PRG ROM bank, fixed to the last bank
-            return this->cartridge->prgROM[this->firstBankStart | (addr % 0x4000)];
+            return this->cartridge->prgROM[this->secondBankStart | (addr % 0x4000)];
     }
 
     void Write(nes::Address addr, Byte data) override {
@@ -241,10 +241,12 @@ std::unique_ptr<Mapper> Mapper::Create(MapperType mapperType, PCartridge &&cart)
     switch (mapperType) {
         case MapperType::INESMapper000:
             return std::make_unique<NROM>(std::move(cart));
-        case MapperType::INESMapper001:
-            return std::make_unique<MMC1>(std::move(cart));
+            //        case MapperType::INESMapper001:
+            //            return std::make_unique<MMC1>(std::move(cart));
         case MapperType::INESMapper002:
             return std::make_unique<UxROM>(std::move(cart));
+        default:
+            break;
     }
 
     throw std::runtime_error(std::string("Unknown mapper type: ").append(std::to_string(uint8_t(mapperType))));

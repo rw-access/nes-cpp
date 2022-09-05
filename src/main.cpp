@@ -7,9 +7,8 @@
 #include <stdio.h>
 
 
-int drawTiles() {
-    const char game[] = "tests/roms/smb.nes";
-    auto mapper       = nes::LoadRomFile(game);
+int drawTiles(std::string romPath) {
+    auto mapper = nes::LoadRomFile(romPath);
 
     if (SDL_Init(SDL_INIT_VIDEO) < 0) {
         std::cout << "could not initialize sdl2" << SDL_GetError();
@@ -161,12 +160,12 @@ int runRom(std::string romPath) {
 }
 
 int main(int argc, char *argv[]) {
-    //    drawTiles();
     if (argc != 2) {
         printf("usage: %s <rom file>\n", argv[0]);
         return 1;
     }
 
+    // drawTiles(argv[1]);
     runRom(argv[1]);
     return 0;
 }
