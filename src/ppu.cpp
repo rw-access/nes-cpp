@@ -211,35 +211,32 @@ static const uint8_t nameTableMirrorings[4][4] = {
         {0, 1, 2, 3}, // Cartridge::MirroringMode::FourScreen            = 4
 };
 
-Byte PPU::read(Address addr) const {
-    if (addr < 0x2000) {
-        return this->console.mapper->Read(addr);
-    } else if (addr < 0x3f00) {
-        auto nameTableOffset = addr % 0x400;         // $3xxx / $2xxx => $0xxx
-        auto nameTable       = (addr & 0xC00) >> 10; // 0, 1, 2, 3
+Address mirrorNametable(Address addr, Cartridge::MirroringMode mode) {
+    auto nameTableOffset = addr % 0x400;         // $3xxx / $2xxx => $0xxx
+    auto nameTable       = (addr & 0xC00) >> 10; // 0, 1, 2, 3
 
-        // unmirror the nametable from 0, 1, 2, 3 to its actual address
-        auto nameTableBank = nameTableMirrorings[uint8_t(this->console.mapper->cartridge->mirroringMode)][nameTable];
-        return this->nametables[nameTableBank << 10 | nameTableOffset];
-    } else {
+    // unmirror the nametable from 0, 1, 2, 3 to its actual address
+    auto nameTableBank = nameTableMirrorings[uint8_t(mode)][nameTable];
+    return nameTableBank << 10 | nameTableOffset;
+}
+
+Byte PPU::read(Address addr) const {
+    if (addr < 0x2000)
+        return this->console.mapper->Read(addr);
+    else if (addr < 0x3f00)
+        return this->nametables[mirrorNametable(addr, this->console.mapper->cartridge->mirroringMode)];
+    else
         return this->paletteRam[mirrorPalette(addr % 0x20)];
-    }
 }
 
 
 void PPU::write(Address addr, Byte data) {
-    if (addr < 0x2000) {
+    if (addr < 0x2000)
         this->console.mapper->Write(addr, data);
-    } else if (addr < 0x3f00) {
-        auto nameTableOffset = addr % 0x400;         // $3xxx / $2xxx => $0xxx
-        auto nameTable       = (addr & 0xC00) >> 10; // 0, 1, 2, 3
-
-        // unmirror the nametable from 0, 1, 2, 3 to its actual address
-        auto nameTableBank = nameTableMirrorings[uint8_t(this->console.mapper->cartridge->mirroringMode)][nameTable];
-        this->nametables[nameTableBank << 10 | nameTableOffset] = data;
-    } else {
+    else if (addr < 0x3f00)
+        this->nametables[mirrorNametable(addr, this->console.mapper->cartridge->mirroringMode)] = data;
+    else
         this->paletteRam[mirrorPalette(addr % 0x20)] = data;
-    }
 }
 
 
