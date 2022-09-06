@@ -48,6 +48,8 @@ add_executable(
         src/cartridge.h
         src/console.cpp
         src/console.h
+        src/controller.cpp
+        src/controller.h
         src/cpu.cpp
         src/cpu.h
         src/nes.h
@@ -56,8 +58,7 @@ add_executable(
         src/rom.cpp
         src/rom.h
 
-        tests/cpu.cpp
-        src/controller.cpp src/controller.h)
+        tests/cpu.cpp tests/audio.cpp)
 
 include_directories(nes_test ${SDL2_INCLUDE_DIRS})
 target_link_libraries(nes_test ${SDL2_LIBRARIES})
