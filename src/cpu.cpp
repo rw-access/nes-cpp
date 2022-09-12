@@ -1,4 +1,5 @@
 #include "cpu.h"
+#include "apu.h"
 #include "opcodes.def"
 #include "ppu.h"
 #include <iostream>
@@ -1274,8 +1275,7 @@ Byte CPU::read(Address addr) const {
     else if (addr == 0x4016)
         return this->console.controller.Read();
     else if (addr < 0x4018)
-        // return &this->apu[addr - 0x4000];
-        return 0;
+        return this->console.apu->readRegister(addr);
     else if (addr < 0x401f)
         // only enabled for CPU test mode
         return 0;
@@ -1307,8 +1307,7 @@ void CPU::write(Address addr, Byte data) {
     } else if (addr == 0x4016)
         return this->console.controller.Write(data);
     else if (addr < 0x4018)
-        // return &this->apu[addr - 0x4000];
-        return;
+        return this->console.apu->writeRegister(addr, data);
     else if (addr < 0x401f)
         // only enabled for CPU test mode
         return;

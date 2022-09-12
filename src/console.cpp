@@ -1,8 +1,5 @@
-//
-// Created by Ross Wolf on 8/25/22.
-//
-
 #include "console.h"
+#include "apu.h"
 #include "cpu.h"
 #include "ppu.h"
 
@@ -14,9 +11,13 @@ Console::Console(std::unique_ptr<Mapper> &&m) :
 
 std::shared_ptr<Console> Console::Create(std::unique_ptr<Mapper> &&m) {
     std::shared_ptr<Console> console(new Console(std::move(m)));
+    auto &consoleRef = *console;
 
-    console->ppu = std::make_unique<PPU>(*console);
-    console->cpu = std::make_unique<CPU>(*console);
+    console->apu     = std::make_unique<APU>(*console);
+    console->ppu     = std::make_unique<PPU>(*console);
+    console->cpu     = std::make_unique<CPU>(*console);
+
+    console->apu->registerAudioCallback(std::bind(&Console::bufferAudioSample, console.get(), std::placeholders::_1));
     return console;
 }
 
@@ -26,6 +27,8 @@ void Console::StepFrame() {
     while (prevFrame == this->ppu->currentFrame()) {
         auto numCycles = this->cpu->step();
         for (auto cycle = 0; cycle < numCycles; cycle++) {
+            this->apu->step();
+
             this->ppu->step();
             this->ppu->step();
             this->ppu->step();
@@ -35,11 +38,10 @@ void Console::StepFrame() {
 
 
 void Console::DrawFrame(SDL_Surface *surface, uint8_t scaling) const {
-    auto pixels     = static_cast<uint32_t *>(surface->pixels);
-    auto format     = surface->format;
-    auto &screen    = this->ppu->completedScreen();
+    auto pixels  = static_cast<uint32_t *>(surface->pixels);
+    auto format  = surface->format;
+    auto &screen = this->ppu->completedScreen();
 
-    auto pixelIndex = 0;
     for (auto y = 0; y < this->ppu->SCREEN_HEIGHT; y++) {
         for (auto x = 0; x < this->ppu->SCREEN_WIDTH; x++) {
             auto pixelRGBA = screen[y][x];
@@ -57,6 +59,27 @@ void Console::DrawFrame(SDL_Surface *surface, uint8_t scaling) const {
 
 void Console::SetButton(Buttons button, bool status) {
     this->controller.buttons[uint8_t(button)] = status;
+}
+
+void Console::bufferAudioSample(Byte sample) {
+    this->bufferedAudio[this->samplePos] = sample;
+    this->samplePos++;
+
+    if (this->samplePos == this->bufferedAudio.size()) {
+        for (auto &bufferedSample: this->bufferedAudio) {
+            bufferedSample = (bufferedSample == 0 || bufferedSample > 0x80) ? 0x80 : bufferedSample;
+        }
+
+
+        this->samplePos = 0;
+
+        if (this->processAudioSamplesFn != nullptr)
+            this->processAudioSamplesFn(this->bufferedAudio.data(), this->bufferedAudio.size());
+    }
+}
+
+void Console::RegisterAudioCallback(ProcessAudioSamples processSamplesFn) {
+    this->processAudioSamplesFn = processSamplesFn;
 }
 
 } // namespace nes

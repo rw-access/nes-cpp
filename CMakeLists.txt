@@ -27,7 +27,7 @@ add_executable(nes
         src/ppu.h
         src/rom.cpp
         src/rom.h
-        src/controller.cpp src/controller.h)
+        src/controller.cpp src/controller.h src/apu.cpp src/apu.h)
 
 include_directories(nes ${SDL2_INCLUDE_DIRS})
 target_link_libraries(nes ${SDL2_LIBRARIES})
@@ -58,7 +58,7 @@ add_executable(
         src/rom.cpp
         src/rom.h
 
-        tests/cpu.cpp tests/audio.cpp)
+        tests/cpu.cpp tests/audio.cpp src/apu.cpp src/apu.h)
 
 include_directories(nes_test ${SDL2_INCLUDE_DIRS})
 target_link_libraries(nes_test ${SDL2_LIBRARIES})

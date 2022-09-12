@@ -93,8 +93,24 @@ int drawTiles(std::string romPath) {
 int runRom(std::string romPath) {
     auto mapper = nes::LoadRomFile(romPath);
 
-    if (SDL_Init(SDL_INIT_VIDEO) < 0) {
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0) {
         std::cout << "could not initialize sdl2" << SDL_GetError();
+        return 1;
+    }
+
+    SDL_AudioSpec obtained, desired{
+                                    .freq     = 48000,
+                                    .format   = AUDIO_U8,
+                                    .channels = 1,
+                                    .samples  = 256,
+                                    .size     = 256,
+                                    .callback = nullptr,
+                                    .userdata = nullptr,
+                            };
+
+    auto audioDevice = SDL_OpenAudioDevice(NULL, 0, &desired, &obtained, SDL_AUDIO_ALLOW_ANY_CHANGE);
+    if (audioDevice <= 0) {
+        std::cout << "could not open sdl2 audio device" << SDL_GetError();
         return 1;
     }
 
@@ -117,7 +133,15 @@ int runRom(std::string romPath) {
         return 3;
     }
 
-    SDL_Event e;
+    SDL_PauseAudioDevice(audioDevice, 0);
+    nes::ProcessAudioSamples queueAudio = [&](nes::Byte samples[], size_t n) {
+        auto resp = SDL_QueueAudio(audioDevice, samples, n);
+        if (resp != 0) {
+            (void) resp;
+        }
+    };
+    console->RegisterAudioCallback(queueAudio);
+
     bool quit = false;
 
     // A, B, Select, Start, Up, Down, Left, Right
@@ -127,6 +151,7 @@ int runRom(std::string romPath) {
     };
 
     while (!quit) {
+        auto preDrawTime = std::chrono::system_clock::now();
         console->StepFrame();
         console->DrawFrame(screenSurface, scaling);
 
@@ -135,6 +160,7 @@ int runRom(std::string romPath) {
             return 5;
         }
 
+        SDL_Event e;
         while (SDL_PollEvent(&e)) {
             switch (e.type) {
                 case SDL_QUIT:
@@ -151,7 +177,12 @@ int runRom(std::string romPath) {
         }
 
         // hacky scheduler for now
-        SDL_Delay(1000 / 60);
+        auto elapsed             = std::chrono::system_clock::now() - preDrawTime;
+        uint32_t elapsedMS       = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
+        const uint32_t frameTime = 1000 / 60;
+
+        if (elapsedMS < frameTime)
+            SDL_Delay(frameTime - elapsedMS);
     }
 
     window.reset();
