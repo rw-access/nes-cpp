@@ -13,8 +13,9 @@ struct SweepUnit {
     bool carry;
     Byte period;
     Byte shiftCount;
+    Byte delay;
 
-    void step();
+    bool step();
 };
 
 // In a synthesizer, an envelope is the way a sound's parameter changes over time.
@@ -53,10 +54,10 @@ struct Pulse {
     uint16_t lengthCounter;
     bool enabled;
 
-    void step();
     Byte sample() const;
     void stepTimer();
     void stepLength();
+    void stepSweep();
 };
 
 struct Triangle {};
@@ -88,7 +89,7 @@ private:
 
     void updateTicks();
     void stepFrameCounter();
-    Byte sample();
+    float sample();
 
 
 public:

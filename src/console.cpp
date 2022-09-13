@@ -61,16 +61,11 @@ void Console::SetButton(Buttons button, bool status) {
     this->controller.buttons[uint8_t(button)] = status;
 }
 
-void Console::bufferAudioSample(Byte sample) {
+void Console::bufferAudioSample(float sample) {
     this->bufferedAudio[this->samplePos] = sample;
     this->samplePos++;
 
     if (this->samplePos == this->bufferedAudio.size()) {
-        for (auto &bufferedSample: this->bufferedAudio) {
-            bufferedSample = (bufferedSample == 0 || bufferedSample > 0x80) ? 0x80 : bufferedSample;
-        }
-
-
         this->samplePos = 0;
 
         if (this->processAudioSamplesFn != nullptr)

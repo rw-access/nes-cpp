@@ -100,7 +100,7 @@ int runRom(std::string romPath) {
 
     SDL_AudioSpec obtained, desired{
                                     .freq     = 48000,
-                                    .format   = AUDIO_U8,
+                                    .format   = AUDIO_F32SYS,
                                     .channels = 1,
                                     .samples  = 256,
                                     .size     = 256,
@@ -134,8 +134,9 @@ int runRom(std::string romPath) {
     }
 
     SDL_PauseAudioDevice(audioDevice, 0);
-    nes::ProcessAudioSamples queueAudio = [&](nes::Byte samples[], size_t n) {
-        auto resp = SDL_QueueAudio(audioDevice, samples, n);
+    nes::ProcessAudioSamples queueAudio = [&](float samples[], size_t n) {
+        const static size_t bytesPerSample = sizeof(*samples);
+        auto resp                          = SDL_QueueAudio(audioDevice, samples, n * bytesPerSample);
         if (resp != 0) {
             (void) resp;
         }

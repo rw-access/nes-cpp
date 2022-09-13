@@ -6,8 +6,8 @@
 
 namespace nes {
 
-using ProcessAudioSample  = std::function<void(Byte)>;
-using ProcessAudioSamples = std::function<void(Byte samples[], size_t n)>;
+using ProcessAudioSample  = std::function<void(float)>;
+using ProcessAudioSamples = std::function<void(float samples[], size_t n)>;
 
 class APU;
 class CPU;
@@ -32,12 +32,12 @@ private:
 
     ProcessAudioSamples processAudioSamplesFn = nullptr;
 
-    std::array<Byte, 256> bufferedAudio       = {0};
+    std::array<float, 256> bufferedAudio      = {0};
     size_t samplePos                          = bufferedAudio.size() / 2;
 
     Console(std::unique_ptr<Mapper> &&);
 
-    void bufferAudioSample(Byte);
+    void bufferAudioSample(float);
 
 public:
     static std::shared_ptr<Console> Create(std::unique_ptr<Mapper> &&);

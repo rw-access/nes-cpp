@@ -2,10 +2,20 @@
 #include "cpu.h"
 
 namespace nes {
+
+
 static const uint8_t lengthCounterTable[32] = {
         10, 254, 20, 2,  40, 4,  80, 6,  160, 8,  60, 10, 14, 12, 26, 14,
         12, 16,  24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30,
 };
+
+#define PT(n) (95.52 / ((8128.0 / n) + 100))
+static float pulseTable[31] = {
+        0,      PT(1),  PT(2),  PT(3),  PT(4),  PT(5),  PT(6),  PT(7),  PT(8),  PT(9),  PT(10),
+        PT(11), PT(12), PT(13), PT(14), PT(15), PT(16), PT(17), PT(18), PT(19), PT(20), PT(21),
+        PT(22), PT(23), PT(24), PT(25), PT(26), PT(27), PT(28), PT(29), PT(30),
+};
+#undef PT
 
 // read in the order 0, 7, 6, 5, 4, 3, 2, 1.
 static const uint8_t dutyOn[4]{
@@ -15,13 +25,17 @@ static const uint8_t dutyOn[4]{
         0b10011111, // 75%
 };
 
-void SweepUnit::step() {
-    Byte delta = this->period >> this->shiftCount;
+bool SweepUnit::step() {
+    auto shouldSweep = false;
+    if (this->reload || this->delay == 0) {
+        shouldSweep  = this->enabled && this->delay == 0;
+        this->delay  = this->period;
+        this->reload = false;
+    } else {
+        this->delay--;
+    }
 
-    if (this->negate)
-        delta = ~delta;
-
-    this->period += delta + this->carry;
+    return shouldSweep;
 }
 
 inline void VolumeEnvelope::step() {
@@ -61,9 +75,19 @@ void Pulse::stepLength() {
         this->lengthCounter--;
 }
 
+void Pulse::stepSweep() {
+    if (this->sweep.step()) {
+        auto delta = this->period >> this->sweep.shiftCount;
+        if (this->sweep.negate)
+            delta = ~delta;
+
+        this->period += delta + this->sweep.carry;
+    }
+}
+
 Byte Pulse::sample() const {
     const bool high     = (dutyOn[this->dutyType] >> (7 - this->dutyOffset)) & 1;
-    const bool silenced = this->period < 8 || this->period > 0x7ff;
+    const bool silenced = this->period < 8 || (this->period > 0x7ff);
 
     if (!this->enabled || !this->lengthCounter || !high || silenced)
         return 0;
@@ -107,8 +131,8 @@ void APU::stepFrameCounter() {
         case 0x52:
         case 0x54:
             // TODO: length counters
-            this->pulses[0].sweep.step();
-            this->pulses[1].sweep.step();
+            this->pulses[0].stepSweep();
+            this->pulses[1].stepSweep();
 
             this->pulses[0].stepLength();
             this->pulses[1].stepLength();
@@ -127,7 +151,7 @@ void APU::stepFrameCounter() {
             break;
     }
 
-    // TODO: fire interrupts
+    // TODO: check interrupts
     if (stepWithPeriod == 0x44 && this->enableIRQ) {
         this->console.cpu->interrupt(Interrupt::IRQ);
     }
@@ -136,9 +160,9 @@ void APU::stepFrameCounter() {
     this->framePeriod = (stepWithPeriod == 0x55 || stepWithPeriod == 0x44) ? 1 : this->framePeriod + 1;
 }
 
-Byte APU::sample() {
+float APU::sample() {
     // TODO: add other registers and non-linear sampling
-    return (this->pulses[0].sample() + this->pulses[1].sample()) * 2;
+    return pulseTable[this->pulses[0].sample() + this->pulses[1].sample()];
 }
 
 void APU::registerAudioCallback(ProcessAudioSample processAudioSampleFn) {
@@ -234,7 +258,7 @@ void APU::writeRegister(Address addr, Byte data) {
             if (this->useFiveStep) {
                 for (auto i = 0; i < 2; i++) {
                     this->pulses[i].envelope.step();
-                    this->pulses[i].sweep.step();
+                    this->pulses[i].stepSweep();
                     this->pulses[i].stepLength();
                 }
             }
