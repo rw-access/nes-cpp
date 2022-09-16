@@ -50,7 +50,7 @@ struct Pulse {
     Byte dutyType; // 12.5%, 25%, 50%, 75%
     Byte dutyOffset;
     uint16_t timer; // 11 bits
-    uint16_t period;
+    uint16_t timerPeriod;
     uint16_t lengthCounter;
     bool enabled;
 
@@ -60,7 +60,23 @@ struct Pulse {
     void stepSweep();
 };
 
-struct Triangle {};
+struct Triangle {
+    uint16_t timer; // 11 bits
+    uint16_t timerPeriod;
+    uint16_t lengthCounter;
+    uint16_t lengthOffset;
+    uint16_t linearCounterPeriod;
+    uint16_t linearCounterOffset;
+    uint16_t phase;
+    uint16_t lengthEnabled;
+    bool enabled = false;
+    bool reload;
+
+    void stepTimer();
+    void stepLength();
+    void stepLinearCounter();
+    Byte sample();
+};
 
 struct Noise {};
 

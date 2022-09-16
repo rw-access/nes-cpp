@@ -152,7 +152,8 @@ int runRom(std::string romPath) {
     };
 
     while (!quit) {
-        auto preDrawTime = std::chrono::system_clock::now();
+        auto preDrawTicks = SDL_GetTicks();
+
         console->StepFrame();
         console->DrawFrame(screenSurface, scaling);
 
@@ -178,12 +179,14 @@ int runRom(std::string romPath) {
         }
 
         // hacky scheduler for now
-        auto elapsed             = std::chrono::system_clock::now() - preDrawTime;
-        uint32_t elapsedMS       = std::chrono::duration_cast<std::chrono::milliseconds>(elapsed).count();
-        const uint32_t frameTime = 1000 / 60;
+        const auto elapsedTicks         = SDL_GetTicks() - preDrawTicks;
+        const static uint32_t frameTime = 16; // 16.66666
 
-        if (elapsedMS < frameTime)
-            SDL_Delay(frameTime - elapsedMS);
+        if (elapsedTicks < frameTime)
+            SDL_Delay(frameTime - elapsedTicks);
+
+        // maybe get a larger fraction of time
+        SDL_Delay(0);
     }
 
     window.reset();
