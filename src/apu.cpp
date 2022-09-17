@@ -9,10 +9,14 @@ static const uint8_t lengthCounterTable[32] = {
         12, 16,  24, 18, 48, 20, 96, 22, 192, 24, 72, 26, 16, 28, 32, 30,
 };
 
+static const uint16_t noisePeriodTable[16] = {
+        4, 8, 16, 32, 64, 96, 128, 160, 202, 254, 380, 508, 762, 1016, 2034, 4068,
+};
+
 
 // https://www.nesdev.org/wiki/APU_Mixer
 #define PT(n) (95.52 / ((8128.0 / n) + 100))
-static float pulseTable[31] = {
+static const float pulseTable[31] = {
         0,      PT(1),  PT(2),  PT(3),  PT(4),  PT(5),  PT(6),  PT(7),  PT(8),  PT(9),  PT(10),
         PT(11), PT(12), PT(13), PT(14), PT(15), PT(16), PT(17), PT(18), PT(19), PT(20), PT(21),
         PT(22), PT(23), PT(24), PT(25), PT(26), PT(27), PT(28), PT(29), PT(30),
@@ -21,7 +25,7 @@ static float pulseTable[31] = {
 
 #define TND(n) 163.67 / (24329.0 / n + 100)
 
-static float tndTable[203] = {
+static const float tndTable[203] = {
         0,        TND(1),   TND(2),   TND(3),   TND(4),   TND(5),   TND(6),   TND(7),   TND(8),   TND(9),   TND(10),
         TND(11),  TND(12),  TND(13),  TND(14),  TND(15),  TND(16),  TND(17),  TND(18),  TND(19),  TND(20),  TND(21),
         TND(22),  TND(23),  TND(24),  TND(25),  TND(26),  TND(27),  TND(28),  TND(29),  TND(30),  TND(31),  TND(32),
@@ -140,7 +144,8 @@ void Triangle::stepLinearCounter() {
     else if (this->linearCounterOffset > 0)
         this->linearCounterOffset--;
 
-    this->reload &= !this->lengthEnabled;
+    if (this->lengthEnabled)
+        this->reload = false;
 }
 
 void Triangle::stepLength() {
@@ -149,13 +154,36 @@ void Triangle::stepLength() {
 }
 
 Byte Triangle::sample() {
-    if (this->enabled && this->timerPeriod > 0 && this->lengthOffset > 0 && this->linearCounterOffset > 0)
+    if (this->enabled && this->timerPeriod && this->lengthCounter && this->linearCounterOffset)
         // index into 15 14 ... 1 0 0 1 ... 14 15
         // python: [(15 -phase) ^ -(phase >= 16) for phase in range(32)]
         return (15 - this->phase) ^ -(this->phase >= 16);
 
     return 0;
 }
+
+void Noise::stepTimer() {
+    if (this->timer > 0) {
+        this->timer--;
+    } else {
+        this->timer = this->period;
+        this->shiftRegister |= uint16_t(((this->shiftRegister >> this->feedbackBit) ^ this->shiftRegister) & 0x1) << 15;
+        this->shiftRegister >>= 1;
+    }
+}
+
+Byte Noise::sample() {
+    if (!this->enabled || !this->lengthCounter || ~this->shiftRegister & 0x1)
+        return 0;
+
+    return this->envelope.volume();
+}
+
+void Noise::stepLength() {
+    if (!this->envelope.disabled && this->lengthCounter > 0)
+        this->lengthCounter--;
+}
+
 
 void APU::updateTicks() {
     // need to divide the CPU frequency into a non-integer amount.
@@ -200,6 +228,7 @@ void APU::stepFrameCounter() {
             this->pulses[1].stepLength();
 
             this->triangle.stepLength();
+            this->noise.stepLength();
 
             [[fallthrough]];
         case 0x41:
@@ -210,6 +239,7 @@ void APU::stepFrameCounter() {
             // TODO: triangle + noise counters
             this->pulses[0].envelope.step();
             this->pulses[1].envelope.step();
+            this->noise.envelope.step();
 
             this->triangle.stepLinearCounter();
             break;
@@ -230,7 +260,7 @@ float APU::sample() {
     // TODO: noise + DMC
     // https://www.nesdev.org/wiki/APU_Mixer#Lookup_Table
     auto pulseSample = pulseTable[this->pulses[0].sample() + this->pulses[1].sample()];
-    auto tndSample   = tndTable[3 * this->triangle.sample() + 0 + 0];
+    auto tndSample   = tndTable[3 * this->triangle.sample() + 2 * this->noise.sample() + 0];
     return pulseSample + tndSample;
 }
 
@@ -248,6 +278,7 @@ void APU::step() {
         // pulse + noise + dmc
         this->pulses[0].stepTimer();
         this->pulses[1].stepTimer();
+        this->noise.stepTimer();
     }
 
     // TODO: DMC + Noise
@@ -323,9 +354,21 @@ void APU::writeRegister(Address addr, Byte data) {
             this->triangle.phase         = 0;
             break;
         case 0x400C:
+            this->noise.envelope.period         = data & 0xf;
+            this->noise.envelope.useConstVolume = (data >> 4) & 0x1;
+            this->noise.envelope.loop           = (data >> 5) & 0x1;
+            this->noise.envelope.start          = true;
+            break;
         case 0x400D:
+            break;
         case 0x400E:
+            this->noise.feedbackBit = (data >> 7) ? 6 : 1;
+            this->noise.period      = noisePeriodTable[data & 0xf];
+            break;
         case 0x400F:
+            this->noise.lengthCounter  = lengthCounterTable[data >> 3];
+            this->noise.envelope.start = true;
+            break;
         case 0x4010:
         case 0x4011:
         case 0x4012:
@@ -335,6 +378,18 @@ void APU::writeRegister(Address addr, Byte data) {
             this->pulses[0].enabled = data & 0x1;
             this->pulses[1].enabled = (data >> 1) & 0x1;
             this->triangle.enabled  = (data >> 2) & 0x1;
+            this->noise.enabled     = (data >> 3) & 0x1;
+
+            for (int i = 0; i < 2; i++)
+                if (!this->pulses[i].enabled)
+                    this->pulses[i].lengthCounter = 0;
+
+            if (!this->triangle.enabled)
+                this->triangle.lengthCounter = 0;
+
+            if (!this->noise.enabled)
+                this->noise.lengthCounter = 0;
+
             break;
         case 0x4017:
             this->useFiveStep = (data >> 7) & 1;
@@ -348,6 +403,8 @@ void APU::writeRegister(Address addr, Byte data) {
                 }
 
                 this->triangle.stepLength();
+                this->noise.stepLength();
+                this->noise.envelope.step();
             }
             break;
     }

@@ -52,7 +52,7 @@ struct Pulse {
     uint16_t timer; // 11 bits
     uint16_t timerPeriod;
     uint16_t lengthCounter;
-    bool enabled;
+    bool enabled = false;
 
     Byte sample() const;
     void stepTimer();
@@ -64,7 +64,6 @@ struct Triangle {
     uint16_t timer; // 11 bits
     uint16_t timerPeriod;
     uint16_t lengthCounter;
-    uint16_t lengthOffset;
     uint16_t linearCounterPeriod;
     uint16_t linearCounterOffset;
     uint16_t phase;
@@ -78,7 +77,18 @@ struct Triangle {
     Byte sample();
 };
 
-struct Noise {};
+struct Noise {
+    VolumeEnvelope envelope;
+    uint16_t lengthCounter;
+    uint16_t shiftRegister; // 15 bits
+    uint8_t enabled = false;
+    uint8_t period;
+    uint8_t timer;
+    uint8_t feedbackBit;
+    void stepTimer();
+    void stepLength();
+    Byte sample();
+};
 
 struct DMC {};
 
