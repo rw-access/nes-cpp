@@ -474,7 +474,7 @@ uint16_t CPU::step() {
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ADC
 template<>
-void CPU::op<Opcode::ADC>(AddressingMode mode, Address addr) {
+void CPU::op<Opcode::ADC>(AddressingMode, Address addr) {
     WordWithCarry a = this->regA;
     WordWithCarry b = this->read(addr);
     WordWithCarry c = this->status[Flag::C];
@@ -512,7 +512,7 @@ void CPU::op<Opcode::ALR>(AddressingMode mode, Address addr) {
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#ANC
 template<>
-void CPU::op<Opcode::ANC>(AddressingMode mode, Address addr) {
+void CPU::op<Opcode::ANC>(AddressingMode, Address) {
 }
 
 // https://www.nesdev.org/obelisk-6502-guide/reference.html#AND
@@ -1271,7 +1271,7 @@ Byte CPU::read(Address addr) const {
     if (addr < 0x2000)
         return this->ram[addr % this->ram.size()];
     else if (addr < 0x4000)
-        return this->console.ppu->readRegister(0x2000 | addr & 0xf);
+        return this->console.ppu->readRegister(0x2000 | (addr & 0xf));
     else if (addr == 0x4016)
         return this->console.controller.Read();
     else if (addr < 0x4018)
@@ -1326,7 +1326,7 @@ Address CPU::readAddressIndirectWraparound(Address addr) const {
     // there was a bug in the original if the high byte crosses a page boundary,
     // it instead will wrap around
     auto loAddr   = addr;
-    auto hiAddr   = (loAddr & 0xff00) | 0x00ff & (loAddr + 1);
+    auto hiAddr   = (loAddr & 0xff00) | (0x00ff & (loAddr + 1));
 
     auto lowBits  = this->read(loAddr);
     auto highBits = this->read(hiAddr);

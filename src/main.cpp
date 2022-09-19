@@ -5,6 +5,7 @@
 #include <SDL2/SDL.h>
 #include <iostream>
 #include <stdio.h>
+#include <thread>
 
 
 int drawTiles(std::string romPath) {
@@ -41,7 +42,7 @@ int drawTiles(std::string romPath) {
     uint32_t *pixel32 = static_cast<uint32_t *>(screenSurface->pixels);
     auto &chr         = mapper->cartridge->chrROM;
 
-    for (int img = 0; img < numImages; img++) {
+    for (size_t img = 0; img < numImages; img++) {
         for (int y = 0; y < 8; y++) {
             auto imgCol = img % imagesPerLine;
             auto imgRow = img / imagesPerLine;
@@ -102,8 +103,8 @@ int runRom(std::string romPath) {
                                     .freq     = 48000,
                                     .format   = AUDIO_F32SYS,
                                     .channels = 1,
-                                    .samples  = 256,
-                                    .size     = 256,
+                                    .samples  = 0,
+                                    .size     = 0,
                                     .callback = nullptr,
                                     .userdata = nullptr,
                             };
@@ -136,10 +137,7 @@ int runRom(std::string romPath) {
     SDL_PauseAudioDevice(audioDevice, 0);
     nes::ProcessAudioSamples queueAudio = [&](float samples[], size_t n) {
         const static size_t bytesPerSample = sizeof(*samples);
-        auto resp                          = SDL_QueueAudio(audioDevice, samples, n * bytesPerSample);
-        if (resp != 0) {
-            (void) resp;
-        }
+        SDL_QueueAudio(audioDevice, samples, n * bytesPerSample);
     };
     console->RegisterAudioCallback(queueAudio);
 
@@ -152,10 +150,14 @@ int runRom(std::string romPath) {
     };
 
     while (!quit) {
-        auto preDrawTicks = SDL_GetTicks();
+        auto preTime = std::chrono::high_resolution_clock::now();
 
         console->StepFrame();
+
+        SDL_LockSurface(screenSurface);
         console->DrawFrame(screenSurface, scaling);
+        SDL_UnlockSurface(screenSurface);
+
 
         if (SDL_UpdateWindowSurface(window.get()) < 0) {
             std::cout << "could not update window" << SDL_GetError();
@@ -178,15 +180,13 @@ int runRom(std::string romPath) {
             }
         }
 
-        // hacky scheduler for now
-        const auto elapsedTicks         = SDL_GetTicks() - preDrawTicks;
-        const static uint32_t frameTime = 16; // 16.66666
+        auto expectedDuration = std::chrono::duration<double, std::micro>(1000000 / 60);
+        auto targetTime       = preTime + expectedDuration;
+        std::this_thread::sleep_until(targetTime - std::chrono::duration<double, std::micro>(500));
 
-        if (elapsedTicks < frameTime)
-            SDL_Delay(frameTime - elapsedTicks);
-
-        // maybe get a larger fraction of time
-        SDL_Delay(0);
+        // precise wait
+        while (std::chrono::high_resolution_clock::now() < targetTime) {
+        };
     }
 
     window.reset();

@@ -11,11 +11,10 @@ Console::Console(std::unique_ptr<Mapper> &&m) :
 
 std::shared_ptr<Console> Console::Create(std::unique_ptr<Mapper> &&m) {
     std::shared_ptr<Console> console(new Console(std::move(m)));
-    auto &consoleRef = *console;
 
-    console->apu     = std::make_unique<APU>(*console);
-    console->ppu     = std::make_unique<PPU>(*console);
-    console->cpu     = std::make_unique<CPU>(*console);
+    console->apu = std::make_unique<APU>(*console);
+    console->ppu = std::make_unique<PPU>(*console);
+    console->cpu = std::make_unique<CPU>(*console);
 
     console->apu->registerAudioCallback(std::bind(&Console::bufferAudioSample, console.get(), std::placeholders::_1));
     return console;

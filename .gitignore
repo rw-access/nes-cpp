@@ -29,7 +29,7 @@
 *.lib
 
 # Build directories
-cmake-build-debug
+/cmake-build*
 
 # Executables
 *.exe

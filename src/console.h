@@ -32,8 +32,8 @@ private:
 
     ProcessAudioSamples processAudioSamplesFn = nullptr;
 
-    std::array<float, 256> bufferedAudio      = {0};
-    size_t samplePos                          = bufferedAudio.size() / 2;
+    std::array<float, 400> bufferedAudio      = {0};
+    size_t samplePos                          = bufferedAudio.size() - 1;
 
     Console(std::unique_ptr<Mapper> &&);
 

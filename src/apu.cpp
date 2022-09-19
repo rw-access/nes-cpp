@@ -261,7 +261,12 @@ float APU::sample() {
     // https://www.nesdev.org/wiki/APU_Mixer#Lookup_Table
     auto pulseSample = pulseTable[this->pulses[0].sample() + this->pulses[1].sample()];
     auto tndSample   = tndTable[3 * this->triangle.sample() + 2 * this->noise.sample() + 0];
-    return pulseSample + tndSample;
+    auto sampled     = pulseSample + tndSample;
+
+    for (auto &filter: this->filters)
+        sampled = filter.filter(sampled);
+
+    return sampled;
 }
 
 void APU::registerAudioCallback(ProcessAudioSample processAudioSampleFn) {

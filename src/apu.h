@@ -1,5 +1,6 @@
 #pragma once
 #include "console.h"
+#include "dsp.h"
 #include "nes.h"
 
 namespace nes {
@@ -100,6 +101,12 @@ private:
     Pulse pulses[2];
     Triangle triangle;
     Noise noise;
+
+    std::array<FirstOrderFilter, 3> filters{
+            HighPassFilter(48000, 90),
+            HighPassFilter(48000, 440),
+            LowPassFilter(48000, 14000),
+    };
 
     uint32_t cyclesXFrameCounterFreq = 0;
     uint32_t cyclesXSampleFreq       = 0;

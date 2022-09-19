@@ -139,7 +139,7 @@ public:
 private:
     Console &console;
     PPUCTRL ppuCtrl                   = {.raw = 0};
-    PPUSTATUS status                  = {0};
+    PPUSTATUS status                  = {.raw = 0};
     PPUMASK ppuMask                   = {.raw = 0};
     uint16_t scanLine                 = 261; // range [0, 261]
     uint16_t cycleInScanLine          = 0;   // range [0, 340]

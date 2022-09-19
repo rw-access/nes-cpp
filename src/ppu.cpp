@@ -25,7 +25,7 @@ Byte ProcessedSprite::color(uint8_t x) const {
 bool Sprite::empty() const {
     auto rawBytes = (const Byte *) (this);
     bool equiv    = true;
-    for (auto offset = 0; offset < sizeof(Sprite); offset++)
+    for (size_t offset = 0; offset < sizeof(Sprite); offset++)
         equiv = equiv && rawBytes[offset] == 0xff;
 
     return equiv;
@@ -56,12 +56,12 @@ void VRAMAddress::incrementY() {
 
 void VRAMAddress::copyX(const VRAMAddress &other) {
     this->coarseX         = other.coarseX;
-    this->nameTableSelect = this->nameTableSelect & 0x2 | other.nameTableSelect & 0x1;
+    this->nameTableSelect = (this->nameTableSelect & 0x2) | (other.nameTableSelect & 0x1);
 }
 
 void VRAMAddress::copyY(const nes::VRAMAddress &other) {
     this->coarseY         = other.coarseY;
-    this->nameTableSelect = other.nameTableSelect & 0x2 | this->nameTableSelect & 0x1;
+    this->nameTableSelect = (other.nameTableSelect & 0x2) | (this->nameTableSelect & 0x1);
     this->fineY           = other.fineY;
 }
 
@@ -273,7 +273,7 @@ void PPU::fetchBackgroundTile() {
     switch (this->cycleInScanLine % 8) {
         case 1:
             // everything but fine Y
-            this->pendingTile.nameTableIndex = this->read(0x2000 | v & 0x0FFF);
+            this->pendingTile.nameTableIndex = this->read(0x2000 | (v & 0x0FFF));
             break;
         case 3: {
             // TODO: switch to use bitfields
@@ -467,7 +467,7 @@ void PPU::stepVisible() {
     } else if (this->cycleInScanLine == 320) {
         // Cycles 257-320: Sprite fetches (8 sprites total, 8 cycles per sprite).
         // Find the corresponding tiles for each sprite
-        for (auto s = 0; s < this->secondarySprites().size(); s++) {
+        for (size_t s = 0; s < this->secondarySprites().size(); s++) {
             auto &processedSprite  = this->processedSprites[s];
             auto &sprite           = this->secondarySprites()[s];
 
