@@ -456,9 +456,8 @@ void PPU::stepVisible() {
                 Byte(0x10 | spPaletteOffset | spPaletteIndex),
         };
 
-        Byte paletteIndex = multiplexedColors[uint8_t(md)];
+        Byte paletteIndex                          = multiplexedColors[uint8_t(md)];
 
-        // TODO: Add sprites!
         auto color                                 = this->paletteRam[mirrorPalette(paletteIndex)];
         this->screenBuffers[this->frame & 1][y][x] = colorPaletteRGBA[color];
         this->status.spriteZeroHit |= this->spriteZeroInLine && (spPos == 0) && (md == MultiplexerDecision::drawSprite);
@@ -476,6 +475,7 @@ void PPU::stepVisible() {
                 continue;
 
             // retrieve the corresponding tile for the sprite
+            Byte spriteHeight = this->ppuCtrl.tallSprites ? 16 : 8;
             Byte bank = this->ppuCtrl.tallSprites ? sprite.tileIndex.bank : this->ppuCtrl.spritePatternTableAddress;
             Address patternTableAddress = Address(bank) << 12;
             Address tileIndex           = sprite.tileIndex.raw & ~Byte(this->ppuCtrl.tallSprites);
@@ -483,7 +483,13 @@ void PPU::stepVisible() {
 
             // TODO: 8x16 sprite support
 
-            tileY                = sprite.attributes.flipVertical ? (7 - tileY) : tileY;
+            tileY = sprite.attributes.flipVertical ? (spriteHeight - 1 - tileY) : tileY;
+
+            // tall sprites are stored consecutively, so rewrite the address
+            tileIndex &= ~Byte(this->ppuCtrl.tallSprites);
+            tileIndex += tileY >= 8;
+            tileY &= 0x7;
+
             processedSprite.tile = {
                     .patternLow  = this->read(patternTableAddress | (tileIndex << 4) | tileY),
                     .patternHigh = this->read(patternTableAddress | (tileIndex << 4) | (1 << 3) | tileY),

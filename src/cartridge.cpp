@@ -314,6 +314,9 @@ public:
             return 0;
         } else if (addr < 0x8000) {
             // CPU $6000-$7FFF: 8 KB PRG RAM bank (optional)
+            addr %= 0x2000;
+            if (addr < this->cartridge->prgRAM.size())
+                return this->cartridge->prgRAM[addr];
         } else {
             // CPU $8000-$9FFF (or $C000-$DFFF): 8 KB switchable PRG ROM bank
             // CPU $A000-$BFFF: 8 KB switchable PRG ROM bank
@@ -350,6 +353,9 @@ public:
             return 0;
         } else if (addr < 0x8000) {
             // CPU $6000-$7FFF: 8 KB PRG RAM bank (optional)
+            addr %= 0x2000;
+            if (addr + 256 < this->cartridge->prgRAM.size())
+                return &this->cartridge->prgRAM[addr];
         } else {
             // CPU $8000-$9FFF (or $C000-$DFFF): 8 KB switchable PRG ROM bank
             // CPU $A000-$BFFF: 8 KB switchable PRG ROM bank
@@ -367,20 +373,30 @@ public:
     }
 
     void Write(Address addr, Byte data) override {
-        if (addr < 0x6000) {
+        // PPU reads
+        if (addr < 0x2000) {
+            // PPU $0000-$07FF (or $1000-$17FF): 2 KB switchable CHR bank
+            // PPU $0800-$0FFF (or $1800-$1FFF): 2 KB switchable CHR bank
+            // PPU $1000-$13FF (or $0000-$03FF): 1 KB switchable CHR bank
+            // PPU $1400-$17FF (or $0400-$07FF): 1 KB switchable CHR bank
+            // PPU $1800-$1BFF (or $0800-$0BFF): 1 KB switchable CHR bank
+            // PPU $1C00-$1FFF (or $0C00-$0FFF): 1 KB switchable CHR bank
+            const size_t bank      = addr / chrBankSize;
+            const size_t offset    = addr % chrBankSize;
+            const size_t chrOffset = this->chrBanks[bank] | offset;
+
+            if (chrOffset < this->cartridge->chrROM.size())
+                this->cartridge->chrROM[chrOffset] = data;
+        } else if (addr < 0x6000) {
             // probably unmapped?
             return;
         } else if (addr < 0x8000) {
             // CPU $6000-$7FFF: 8 KB PRG RAM bank (optional)
-            return;
+            addr %= 0x2000;
+            if (addr < this->cartridge->prgRAM.size())
+                this->cartridge->prgRAM[addr] = data;
         } else if (addr < 0xa000 && addr & 1) {
             // Bank data ($8001-$9FFF, odd)
-            // R6 and R7 will ignore the top two bits, as the MMC3 has only 6 PRG ROM address lines.
-            data &= (this->registers[this->registerSelect] == 6 || this->registers[this->registerSelect] == 7) ? 0x3f
-                                                                                                               : 0xff;
-            // R0 and R1 ignore the bottom bit, as the value written still counts banks in 1KB units
-            data &= (this->registers[this->registerSelect] == 0 || this->registers[this->registerSelect] == 1) ? 0xfe
-                                                                                                               : 0xff;
             this->registers[this->registerSelect] = data;
 
             this->updateBanks();
