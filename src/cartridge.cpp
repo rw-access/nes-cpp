@@ -237,6 +237,181 @@ public:
 };
 
 
+// https://www.nesdev.org/wiki/MMC3
+class MMC3 : public Mapper {
+
+private:
+    std::array<Byte, 8> registers   = {0};
+    Byte registerSelect             = 0;
+    bool enableRAM                  = false;
+    bool enableWrites               = false;
+    bool enableIRQ                  = false;
+    bool invertCHR                  = false;
+    bool fixLowPRG                  = false;
+    Byte irqCounter                 = 0;
+    std::array<size_t, 8> chrBanks  = {0};
+    std::array<size_t, 4> prgBanks  = {0};
+
+    static const size_t prgBankSize = 0x2000;
+    static const size_t chrBankSize = 0x0400;
+
+    void updateBanks() {
+        // alignments in Cartridge already guaranteed
+
+        const size_t totalPRG = this->cartridge->prgROM.size() / prgBankSize;
+        const size_t totalCHR = this->cartridge->chrROM.size() / chrBankSize;
+
+        this->prgBanks[0]     = this->registers[6];
+        this->prgBanks[1]     = this->registers[7];
+        this->prgBanks[2]     = (totalPRG - 2);
+        this->prgBanks[3]     = (totalPRG - 1);
+
+        if (this->fixLowPRG)
+            std::swap(this->prgBanks[1], this->prgBanks[2]);
+
+        this->chrBanks[0] = this->invertCHR ? this->registers[2] : this->registers[0] & ~0x1;
+        this->chrBanks[1] = this->invertCHR ? this->registers[3] : this->registers[0] | 0x1;
+        this->chrBanks[2] = this->invertCHR ? this->registers[4] : this->registers[1] & ~0x1;
+        this->chrBanks[3] = this->invertCHR ? this->registers[5] : this->registers[1] | 0x1;
+        this->chrBanks[4] = this->invertCHR ? this->registers[0] & ~0x1 : this->registers[2];
+        this->chrBanks[5] = this->invertCHR ? this->registers[0] | 0x1 : this->registers[3];
+        this->chrBanks[6] = this->invertCHR ? this->registers[1] & ~0x1 : this->registers[4];
+        this->chrBanks[7] = this->invertCHR ? this->registers[1] | 0x1 : this->registers[5];
+
+        for (auto &bank: this->prgBanks)
+            bank *= prgBankSize;
+
+        for (auto &bank: this->chrBanks)
+            bank *= chrBankSize;
+    }
+
+public:
+    MMC3(PCartridge &&c) :
+        Mapper(std::move(c)) {
+        updateBanks();
+    }
+
+
+    Byte Read(Address addr) const override {
+        // https://www.nesdev.org/wiki/MMC3#Banks
+
+        // PPU reads
+        if (addr < 0x2000) {
+            // PPU $0000-$07FF (or $1000-$17FF): 2 KB switchable CHR bank
+            // PPU $0800-$0FFF (or $1800-$1FFF): 2 KB switchable CHR bank
+            // PPU $1000-$13FF (or $0000-$03FF): 1 KB switchable CHR bank
+            // PPU $1400-$17FF (or $0400-$07FF): 1 KB switchable CHR bank
+            // PPU $1800-$1BFF (or $0800-$0BFF): 1 KB switchable CHR bank
+            // PPU $1C00-$1FFF (or $0C00-$0FFF): 1 KB switchable CHR bank
+            const Byte bank        = addr / chrBankSize;
+            const Byte offset      = addr % chrBankSize;
+            const size_t chrOffset = this->chrBanks[bank] | offset;
+
+            if (chrOffset < this->cartridge->chrROM.size())
+                return this->cartridge->chrROM[chrOffset];
+        } else if (addr < 0x6000) {
+            // not mapped to PPU or CPU
+            return 0;
+        } else if (addr < 0x8000) {
+            // CPU $6000-$7FFF: 8 KB PRG RAM bank (optional)
+        } else {
+            // CPU $8000-$9FFF (or $C000-$DFFF): 8 KB switchable PRG ROM bank
+            // CPU $A000-$BFFF: 8 KB switchable PRG ROM bank
+            // CPU $C000-$DFFF (or $8000-$9FFF): 8 KB PRG ROM bank, fixed to the second-last bank
+            // CPU $E000-$FFFF: 8 KB PRG ROM bank, fixed to the last bank
+            const Byte bank        = (addr & ~0x8000) / prgBankSize;
+            const Byte offset      = addr % prgBankSize;
+            const size_t prgOffset = this->prgBanks[bank] | offset;
+
+            if (prgOffset < this->cartridge->prgROM.size())
+                return this->cartridge->prgROM[prgOffset];
+        }
+
+        return 0;
+    }
+
+    const Byte *DMAStart(Address addr) const override {
+        // PPU reads
+        if (addr < 0x2000) {
+            // PPU $0000-$07FF (or $1000-$17FF): 2 KB switchable CHR bank
+            // PPU $0800-$0FFF (or $1800-$1FFF): 2 KB switchable CHR bank
+            // PPU $1000-$13FF (or $0000-$03FF): 1 KB switchable CHR bank
+            // PPU $1400-$17FF (or $0400-$07FF): 1 KB switchable CHR bank
+            // PPU $1800-$1BFF (or $0800-$0BFF): 1 KB switchable CHR bank
+            // PPU $1C00-$1FFF (or $0C00-$0FFF): 1 KB switchable CHR bank
+            const Byte bank        = addr / 0x0400;
+            const Byte offset      = addr % 0x0400;
+            const size_t chrOffset = this->chrBanks[bank] | offset;
+
+            if (chrOffset + 512 <= this->cartridge->chrROM.size())
+                return &this->cartridge->chrROM[chrOffset];
+        } else if (addr < 0x6000) {
+            // not mapped to PPU or CPU
+            return 0;
+        } else if (addr < 0x8000) {
+            // CPU $6000-$7FFF: 8 KB PRG RAM bank (optional)
+        } else {
+            // CPU $8000-$9FFF (or $C000-$DFFF): 8 KB switchable PRG ROM bank
+            // CPU $A000-$BFFF: 8 KB switchable PRG ROM bank
+            // CPU $C000-$DFFF (or $8000-$9FFF): 8 KB PRG ROM bank, fixed to the second-last bank
+            // CPU $E000-$FFFF: 8 KB PRG ROM bank, fixed to the last bank
+            const Byte bank        = addr / 0x0400;
+            const Byte offset      = addr % 0x0400;
+            const size_t prgOffset = this->prgBanks[bank] | offset;
+
+            if (prgOffset + 512 <= this->cartridge->prgROM.size())
+                return &this->cartridge->prgROM[prgOffset];
+        }
+
+        return nullptr;
+    }
+
+    void Write(Address addr, Byte data) override {
+        if (addr < 0x6000) {
+            // probably unmapped?
+            return;
+        } else if (addr < 0x8000) {
+            // CPU $6000-$7FFF: 8 KB PRG RAM bank (optional)
+            return;
+        } else if (addr < 0xa000 && addr & 1) {
+            // Bank data ($8001-$9FFF, odd)
+            // R6 and R7 will ignore the top two bits, as the MMC3 has only 6 PRG ROM address lines.
+            data &= (this->registers[this->registerSelect] == 6 || this->registers[this->registerSelect] == 7) ? 0x3f
+                                                                                                               : 0xff;
+            // R0 and R1 ignore the bottom bit, as the value written still counts banks in 1KB units
+            data &= (this->registers[this->registerSelect] == 0 || this->registers[this->registerSelect] == 1) ? 0xfe
+                                                                                                               : 0xff;
+            this->registers[this->registerSelect] = data;
+
+            this->updateBanks();
+        } else if (addr < 0xa000 && ~addr & 1) {
+            // Bank select ($8000-$9FFE, even)
+            this->registerSelect = data & 0x7;
+            this->fixLowPRG      = data & 0x40;
+            this->invertCHR      = data & 0x80;
+
+            this->updateBanks();
+        } else if (addr < 0xc000 && addr & 1) {
+            // PRG RAM protect ($A001-$BFFF, odd)
+            this->enableRAM    = data & 0x40;
+            this->enableWrites = data & 0x80;
+        } else if (addr < 0xc000 && ~addr & 1) {
+            // Mirroring ($A000-$BFFE, even)
+            this->cartridge->mirroringMode =
+                    (data & 1) ? Cartridge::MirroringMode::Horizontal : Cartridge::MirroringMode::Vertical;
+        } else if (addr < 0xe000 && addr & 1) {
+            // IRQ reload ($C001-$DFFF, odd)
+            this->irqCounter = 0;
+        } else if (addr < 0xe000 && ~addr & 1) {
+            // IRQ latch ($C000-$DFFE, even)
+        } else if (addr & 1) {
+            // IRQ enable ($E001-$FFFF, odd)
+            // IRQ disable ($E000-$FFFE, even)
+            this->enableIRQ = addr & 1;
+        }
+    }
+};
+
 std::unique_ptr<Mapper> Mapper::Create(MapperType mapperType, PCartridge &&cart) {
     switch (mapperType) {
         case MapperType::INESMapper000:
@@ -245,6 +420,8 @@ std::unique_ptr<Mapper> Mapper::Create(MapperType mapperType, PCartridge &&cart)
             //            return std::make_unique<MMC1>(std::move(cart));
         case MapperType::INESMapper002:
             return std::make_unique<UxROM>(std::move(cart));
+        case MapperType::INESMapper004:
+            return std::make_unique<MMC3>(std::move(cart));
         default:
             break;
     }

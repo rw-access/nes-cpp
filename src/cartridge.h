@@ -12,10 +12,9 @@ struct Cartridge {
         SingleScreenUpperBank = 2,
     };
 
-    std::vector<Byte> prgROM; // multiple of 16 KiB
-    std::vector<Byte> chrROM; // multiple of 8 KiB
-    std::vector<Byte> instROM;
-    std::vector<Byte> prgRAM; // multiple of 8 KiB
+    std::vector<Byte> prgROM; // multiple of 16 KiB / 0x4000
+    std::vector<Byte> chrROM; // multiple of 8 KiB  / 0x2000
+    std::vector<Byte> prgRAM; // multiple of 8 KiB  / 0x2000
     std::vector<Byte> sRAM;
     MirroringMode mirroringMode;
 };
@@ -26,6 +25,7 @@ enum class MapperType : uint16_t {
     INESMapper000 = 0,
     INESMapper001 = 1,
     INESMapper002 = 2,
+    INESMapper004 = 4,
 };
 
 class Mapper {
