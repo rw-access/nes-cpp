@@ -267,7 +267,7 @@ private:
         this->prgBanks[3]     = (totalPRG - 1);
 
         if (this->fixLowPRG)
-            std::swap(this->prgBanks[1], this->prgBanks[2]);
+            std::swap(this->prgBanks[0], this->prgBanks[2]);
 
         this->chrBanks[0] = this->invertCHR ? this->registers[2] : this->registers[0] & ~0x1;
         this->chrBanks[1] = this->invertCHR ? this->registers[3] : this->registers[0] | 0x1;
@@ -303,8 +303,8 @@ public:
             // PPU $1400-$17FF (or $0400-$07FF): 1 KB switchable CHR bank
             // PPU $1800-$1BFF (or $0800-$0BFF): 1 KB switchable CHR bank
             // PPU $1C00-$1FFF (or $0C00-$0FFF): 1 KB switchable CHR bank
-            const Byte bank        = addr / chrBankSize;
-            const Byte offset      = addr % chrBankSize;
+            const size_t bank      = addr / chrBankSize;
+            const size_t offset    = addr % chrBankSize;
             const size_t chrOffset = this->chrBanks[bank] | offset;
 
             if (chrOffset < this->cartridge->chrROM.size())
@@ -319,8 +319,8 @@ public:
             // CPU $A000-$BFFF: 8 KB switchable PRG ROM bank
             // CPU $C000-$DFFF (or $8000-$9FFF): 8 KB PRG ROM bank, fixed to the second-last bank
             // CPU $E000-$FFFF: 8 KB PRG ROM bank, fixed to the last bank
-            const Byte bank        = (addr & ~0x8000) / prgBankSize;
-            const Byte offset      = addr % prgBankSize;
+            const size_t bank      = (addr & ~0x8000) / prgBankSize;
+            const size_t offset    = addr % prgBankSize;
             const size_t prgOffset = this->prgBanks[bank] | offset;
 
             if (prgOffset < this->cartridge->prgROM.size())
@@ -339,11 +339,11 @@ public:
             // PPU $1400-$17FF (or $0400-$07FF): 1 KB switchable CHR bank
             // PPU $1800-$1BFF (or $0800-$0BFF): 1 KB switchable CHR bank
             // PPU $1C00-$1FFF (or $0C00-$0FFF): 1 KB switchable CHR bank
-            const Byte bank        = addr / 0x0400;
-            const Byte offset      = addr % 0x0400;
+            const size_t bank      = addr / chrBankSize;
+            const size_t offset    = addr % chrBankSize;
             const size_t chrOffset = this->chrBanks[bank] | offset;
 
-            if (chrOffset + 512 <= this->cartridge->chrROM.size())
+            if (chrOffset + 256 <= this->cartridge->chrROM.size())
                 return &this->cartridge->chrROM[chrOffset];
         } else if (addr < 0x6000) {
             // not mapped to PPU or CPU
@@ -355,11 +355,11 @@ public:
             // CPU $A000-$BFFF: 8 KB switchable PRG ROM bank
             // CPU $C000-$DFFF (or $8000-$9FFF): 8 KB PRG ROM bank, fixed to the second-last bank
             // CPU $E000-$FFFF: 8 KB PRG ROM bank, fixed to the last bank
-            const Byte bank        = addr / 0x0400;
-            const Byte offset      = addr % 0x0400;
+            const size_t bank      = (addr & ~0x8000) / prgBankSize;
+            const size_t offset    = addr % prgBankSize;
             const size_t prgOffset = this->prgBanks[bank] | offset;
 
-            if (prgOffset + 512 <= this->cartridge->prgROM.size())
+            if (prgOffset + 256 <= this->cartridge->prgROM.size())
                 return &this->cartridge->prgROM[prgOffset];
         }
 
