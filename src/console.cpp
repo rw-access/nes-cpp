@@ -31,6 +31,10 @@ void Console::StepFrame() {
             this->ppu->step();
             this->ppu->step();
             this->ppu->step();
+
+            if (this->mapper->CheckIRQ()) {
+                this->cpu->interrupt(Interrupt::IRQ);
+            }
         }
     }
 }

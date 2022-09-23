@@ -29,16 +29,23 @@ enum class MapperType : uint16_t {
 };
 
 class Mapper {
+private:
+    bool pendingIRQ = false;
+
+protected:
+    void triggerIRQ();
+
 public:
     PCartridge cartridge;
 
-public:
     Mapper(PCartridge &&c);
-    virtual ~Mapper()                                = default;
+    virtual ~Mapper() = default;
+    bool CheckIRQ();
 
     virtual Byte Read(Address addr) const            = 0;
     virtual const Byte *DMAStart(Address addr) const = 0;
     virtual void Write(Address addr, Byte data)      = 0;
+    virtual void OnScanline();
 
     static std::unique_ptr<Mapper> Create(MapperType mapperType, PCartridge &&cart);
 };

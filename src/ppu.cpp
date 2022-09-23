@@ -337,6 +337,8 @@ void PPU::stepPreRender() {
         // idle
     } else if (this->cycleInScanLine <= 256) {
         this->fetchBackgroundTile();
+    } else if (this->cycleInScanLine == 260) {
+        this->console.mapper->OnScanline();
     } else if (this->cycleInScanLine >= 321 && this->cycleInScanLine <= 336) {
         // prefetch for the next line
         this->fetchBackgroundTile();
@@ -463,6 +465,8 @@ void PPU::stepVisible() {
         this->status.spriteZeroHit |= this->spriteZeroInLine && (spPos == 0) && (md == MultiplexerDecision::drawSprite);
 
         this->fetchBackgroundTile();
+    } else if (this->cycleInScanLine == 260) {
+        this->console.mapper->OnScanline();
     } else if (this->cycleInScanLine == 320) {
         // Cycles 257-320: Sprite fetches (8 sprites total, 8 cycles per sprite).
         // Find the corresponding tiles for each sprite
@@ -481,9 +485,7 @@ void PPU::stepVisible() {
             Address tileIndex           = sprite.tileIndex.raw & ~Byte(this->ppuCtrl.tallSprites);
             Byte tileY                  = this->scanLine - sprite.yPosTop;
 
-            // TODO: 8x16 sprite support
-
-            tileY = sprite.attributes.flipVertical ? (spriteHeight - 1 - tileY) : tileY;
+            tileY                       = sprite.attributes.flipVertical ? (spriteHeight - 1 - tileY) : tileY;
 
             // tall sprites are stored consecutively, so rewrite the address
             tileIndex &= ~Byte(this->ppuCtrl.tallSprites);

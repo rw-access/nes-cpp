@@ -6,6 +6,19 @@ Mapper::Mapper(nes::PCartridge &&c) :
     cartridge(std::move(c)) {
 }
 
+void Mapper::OnScanline() {
+}
+
+bool Mapper::CheckIRQ() {
+    auto irqStatus   = this->pendingIRQ;
+    this->pendingIRQ = false;
+    return irqStatus;
+}
+
+void Mapper::triggerIRQ() {
+    this->pendingIRQ = true;
+}
+
 class UxROM : public Mapper {
 private:
     Address firstBankStart  = 0x0000;
@@ -249,6 +262,7 @@ private:
     bool invertCHR                  = false;
     bool fixLowPRG                  = false;
     Byte irqCounter                 = 0;
+    Byte irqPeriod                  = 0;
     std::array<size_t, 8> chrBanks  = {0};
     std::array<size_t, 4> prgBanks  = {0};
 
@@ -420,10 +434,20 @@ public:
             this->irqCounter = 0;
         } else if (addr < 0xe000 && ~addr & 1) {
             // IRQ latch ($C000-$DFFE, even)
-        } else if (addr & 1) {
+            this->irqPeriod = data;
+        } else {
             // IRQ enable ($E001-$FFFF, odd)
             // IRQ disable ($E000-$FFFE, even)
             this->enableIRQ = addr & 1;
+        }
+    }
+
+    void OnScanline() override {
+        this->irqCounter = (this->irqCounter == 0) ? this->irqPeriod : this->irqCounter - 1;
+
+        if (this->enableIRQ && this->irqCounter == 0) {
+            // send an IRQ to the CPU
+            this->triggerIRQ();
         }
     }
 };

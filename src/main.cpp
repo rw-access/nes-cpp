@@ -182,11 +182,8 @@ int runRom(std::string romPath) {
 
         auto expectedDuration = std::chrono::duration<double, std::micro>(1000000 / 60);
         auto targetTime       = preTime + expectedDuration;
-        std::this_thread::sleep_until(targetTime - std::chrono::duration<double, std::micro>(500));
 
-        // precise wait
-        while (std::chrono::high_resolution_clock::now() < targetTime) {
-        };
+        std::this_thread::sleep_until(targetTime - std::chrono::duration<double, std::micro>(0));
     }
 
     window.reset();
