@@ -33,7 +33,7 @@ private:
     ProcessAudioSamples processAudioSamplesFn = nullptr;
 
     std::array<float, 400> bufferedAudio      = {0};
-    size_t samplePos                          = bufferedAudio.size() - 1;
+    size_t samplePos                          = this->bufferedAudio.size() - 1;
 
     Console(std::unique_ptr<Mapper> &&);
 

@@ -125,7 +125,7 @@ std::unique_ptr<Mapper> LoadRomFile(const std::string &path) {
 
     bool isNES2_0 = hdr.nes2.nes2_0 == 0x2;
     if (isNES2_0)
-        printf("TODO: support NES 2.0");
+        printf("TODO: support NES 2.0\n");
 
     if (hdr.ines.fourScreenMirror)
         cartridge->mirroringMode = Cartridge::MirroringMode::FourScreen;

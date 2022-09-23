@@ -19,7 +19,7 @@ endif ()
 
 set(CMAKE_CXX_FLAGS "-Wall -Wextra")
 set(CMAKE_CXX_FLAGS_DEBUG "-g")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
+set(CMAKE_CXX_FLAGS_RELEASE "-O3 -g")
 
 add_executable(nes
 
@@ -35,10 +35,30 @@ add_executable(nes
         src/ppu.h
         src/rom.cpp
         src/rom.h
-        src/controller.cpp src/controller.h src/apu.cpp src/apu.h src/dsp.cpp src/dsp.h)
+        src/controller.cpp src/controller.h src/apu.cpp src/apu.h src/dsp.cpp src/dsp.h src/game.cpp src/game.h)
 
 include_directories(nes ${SDL2_INCLUDE_DIRS})
 target_link_libraries(nes ${SDL2_LIBRARIES})
+
+
+add_library(nes_dll MODULE
+
+        src/cartridge.cpp
+        src/cartridge.h
+        src/console.cpp
+        src/console.h
+        src/cpu.cpp
+        src/cpu.h
+        src/dll.cpp
+        src/nes.h
+        src/ppu.cpp
+        src/ppu.h
+        src/rom.cpp
+        src/rom.h
+        src/controller.cpp src/controller.h src/apu.cpp src/apu.h src/dsp.cpp src/dsp.h src/game.cpp src/game.h src/dll.h)
+
+include_directories(nes_dll ${SDL2_INCLUDE_DIRS})
+target_link_libraries(nes_dll ${SDL2_LIBRARIES})
 
 FetchContent_Declare(
         googletest
@@ -48,6 +68,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(googletest)
 
 enable_testing()
+
 
 add_executable(
         nes_test
