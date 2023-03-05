@@ -215,7 +215,7 @@ Address mirrorNametable(Address addr, Cartridge::MirroringMode mode) {
     auto nameTableOffset = addr % 0x400;         // $3xxx / $2xxx => $0xxx
     auto nameTable       = (addr & 0xC00) >> 10; // 0, 1, 2, 3
 
-    // unmirror the nametable from 0, 1, 2, 3 to its actual address
+    // unmirror the nametable from 0, 1, 2, 3 to its actudal address
     auto nameTableBank = nameTableMirrorings[uint8_t(mode)][nameTable];
     return nameTableBank << 10 | nameTableOffset;
 }
@@ -394,7 +394,6 @@ void PPU::stepVisible() {
         Byte y = this->scanLine;
 
         // fetch the background pixel
-        // TODO: fix fine X scrolling
         Byte fineX             = (x % 8) + this->fineXScroll;
         const TileData &tile   = this->processedTiles[fineX >> 3];
         Byte tilePaletteIndex  = tile.color(fineX % 8);

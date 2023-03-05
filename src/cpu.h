@@ -65,7 +65,11 @@ class CPU {
     using Status        = std::bitset<8>;
     using WordWithCarry = uint16_t;
 
+#ifdef _NES_TEST
+public:
+#else
 private:
+#endif
     Console &console;
     std::array<Byte, 0x800> ram = {0};
     Byte regA, regX, regY, regSP;

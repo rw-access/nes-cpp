@@ -21,7 +21,7 @@ struct inesHeader {
     bool vsUnisystem      : 1;      // 7 0
     bool playChoice10     : 1;      // 7 1
     uint8_t nes2_0        : 2;      // 7 2..3
-    uint8_t mapperHi      : 4;      // 7 4..6
+    uint8_t mapperHi      : 4;      // 7 4..7
     uint8_t prgRamSize;             // 8
     bool pal : 1;                   // 9 1
     uint8_t  : 7;                   // 9 2..7
